@@ -63,6 +63,6 @@ docs/TESTING_GUIDE.md
 |---|---|
 | AccountLocation object (ogg package) | `ogg__Location__c` |
 | Link to the Account | `ogg__ObjectId__c` (Text 18, the Account Id; `ogg__prefix__c` = `001`). There's no lookup field. |
-| Address on Account | `Account.Address__c`. If the location isn't linked to an Account, `ogg__Location__c.ogg__RawAddress__c` is used instead. |
+| Address on Account | `Account.Address__c`. If `ogg__ObjectId__c` points to a record that isn't an Account (or the Account is gone), `ogg__Location__c.ogg__RawAddress__c` is used instead. |
 | Original coordinates | `ogg__Latitude__c`, `ogg__Longitude__c` |
 | Target fields (already in the org, **not** deployed by this project) | `Suggested_Latitude__c`, `Suggested_Longtitude__c` (spelled *Longtitude* in the org), `Different_Distance__c` |
