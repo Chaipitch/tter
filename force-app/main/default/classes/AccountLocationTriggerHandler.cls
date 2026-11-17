@@ -50,7 +50,7 @@ public without sharing class AccountLocationTriggerHandler {
                    rec.get(latField) != old.get(latField)
                 || rec.get(lngField) != old.get(lngField)
                 || rec.Suggested_Latitude__c  != old.Suggested_Latitude__c
-                || rec.Suggested_Longitude__c != old.Suggested_Longitude__c;
+                || rec.Suggested_Longtitude__c != old.Suggested_Longtitude__c;
             if (changed) {
                 setDistance(rec, latField, lngField);
             }
@@ -63,6 +63,6 @@ public without sharing class AccountLocationTriggerHandler {
             GeoDistanceUtil.toDecimal(rec.get(latField)),
             GeoDistanceUtil.toDecimal(rec.get(lngField)),
             rec.Suggested_Latitude__c,
-            rec.Suggested_Longitude__c);
+            rec.Suggested_Longtitude__c);
     }
 }

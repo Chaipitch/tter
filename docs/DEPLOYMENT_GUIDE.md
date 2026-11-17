@@ -31,56 +31,36 @@ git checkout claude/focused-babbage-51c5ir
 
 These checks take about 10 minutes and prevent most deployment failures. Do them in **Setup → Object Manager**.
 
-### 1.1 Object and lookup API names (already set in the project)
+### 1.1 Org API names (already set in the project)
 
-The project already uses these API names:
+The project is built for these names in `tterakit-sb`. Check that production uses the same names before promoting.
 
 | Item | API name |
 |---|---|
 | AccountLocation object (ogg package) | `ogg__Location__c` |
-| Lookup to Account | Found automatically: the field on `ogg__Location__c` that references Account. If there's more than one, set its API name in the custom setting's *Account Lookup Field*. |
-| Address field on Account | `Address__c` (your org's own field, no namespace) |
+| Link to the Account | `ogg__ObjectId__c`: Text(18) holding the Account Id (`ogg__prefix__c` = `001`). There's **no** lookup field. |
+| Address | `Account.Address__c`. If the location isn't linked to an Account, `ogg__Location__c.ogg__RawAddress__c` is used. |
+| Original coordinates | `ogg__Latitude__c`, `ogg__Longitude__c`. These are the defaults in `GoogleMapsSettings.cls` and in the custom setting script. |
 
-Check them in **Object Manager**. If one differs, search and replace it in `force-app`, `manifest` and `scripts`. If it's the object name, also rename the folder `force-app/main/default/objects/ogg__Location__c`.
+### 1.2 Target fields already exist (not deployed)
 
-> The **new** fields (`Suggested_Latitude__c`, `Suggested_Longitude__c`, `Different_Distance__c`) have **no** `ogg__` prefix. Fields you add to a managed object belong to your org, so they're referenced as `ogg__Location__c.Suggested_Latitude__c`. The project already does this.
+`Suggested_Latitude__c`, **`Suggested_Longtitude__c`** (that's the spelling in the org) and `Different_Distance__c` already exist on `ogg__Location__c`. The project only reads and writes them; it doesn't deploy them, so their definitions stay as they are.
 
-### 1.2 Fields from the ogg package
+### 1.3 Required fields on Account
 
-Fields that come with the package carry the `ogg__` prefix. This matters for the original latitude/longitude fields in 1.4: they're probably named something like `ogg__Latitude__c`, not `Latitude__c`.
+Account has required fields (for example `Tax_ID__c`, `Customer_Type__c`, `Company__c`). The tests don't name them: `TestRecordFactory` fills every database-level required field with a value that fits its type. If a **validation rule** needs a specific value, add it to the values map in `AccountLocationGeocodingTest.newAccount()`.
 
-### 1.3 Account address field
+### 1.4 UPWARD in tests
 
-On **Account**, confirm the address field is `Address__c`. Any text type works: Text, Text Area, or Long Text Area.
+When a test inserts an Account with an address, UPWARD may create its own `ogg__Location__c`, and may run its own logic. The tests check only their own records, so extra UPWARD records don't break them. If UPWARD itself throws during the test insert, send the error. It may need a value in `newAccount()`.
 
-### 1.4 Original latitude / longitude fields
+### 1.5 Field-level security
 
-On `ogg__Location__c`, find the fields where UPWARD stores the original coordinates. Write down their **API names**, for example:
-
-| Kind of field | Use these API names |
-|---|---|
-| Two number fields from the package | `ogg__Latitude__c`, `ogg__Longitude__c` |
-| One Geolocation field from the package, e.g. `ogg__Location__c` | `ogg__Location__Latitude__s`, `ogg__Location__Longitude__s` |
-| Two number fields your org added | `Latitude__c`, `Longitude__c` (the current default) |
-
-Put these names in two places:
-1. **The custom setting** (step 4). The running code reads them from there.
-2. **The defaults in `force-app/main/default/classes/GoogleMapsSettings.cls`** (`DEFAULT_LATITUDE_FIELD`, `DEFAULT_LONGITUDE_FIELD`). Apex tests can't see custom setting data, so the tests use these defaults. If the defaults don't exist on `ogg__Location__c`, the tests fail with `field "Latitude__c" does not exist`.
-
-### 1.5 Do the three target fields already exist?
-
-Check AccountLocation for `Suggested_Latitude__c`, `Suggested_Longitude__c` and `Different_Distance__c`.
-
-* **They don't exist:** deploy as-is. The project creates them as Number(3,7), Number(3,7) and Number(10,2).
-* **They exist:** remove the three `ogg__Location__c.*` `CustomField` members from `manifest/package.xml`. Also delete `force-app/main/default/objects/ogg__Location__c/fields/`. This keeps the deployment from changing your field definitions. They must be **Number** (or Currency/Percent) fields with at least 7 decimal places for latitude/longitude.
+The running user needs no access to the target fields. The job runs in system mode. To see the fields on the page, give your users read access, either through the permission set in step 3.4 or through their profile.
 
 ### 1.6 Existing triggers on AccountLocation
 
 Check **Object Manager → AccountLocation → Triggers**. A second trigger on the same object works, but the execution order between triggers is not guaranteed. If your org uses a trigger framework (one trigger per object), call `AccountLocationTriggerHandler.afterInsert(...)` and `.beforeUpdate(...)` from your existing trigger. Then remove `AccountLocationTrigger` from the manifest.
-
-### 1.7 Required fields / validation rules
-
-If Account or AccountLocation has required fields or validation rules, the tests may fail on insert. Add the required values in `AccountLocationGeocodingTest.newAccount()` and `newLocation()`.
 
 ---
 
@@ -162,7 +142,7 @@ The feature is **off** until the Organization Default of `Google_Maps_Settings__
 
 **Option A – script (recommended)**
 
-1. Edit `scripts/apex/configure-settings.apex`. Set the API key and the original latitude/longitude field names from step 1.4. **Don't commit** the edited file.
+1. Edit `scripts/apex/configure-settings.apex` and paste the API key. The field names are already set. **Don't commit** the edited file.
 2. Run:
 
    ```bash
@@ -183,13 +163,12 @@ Go to **Setup → Custom Settings → Google Maps Settings → Manage → New** 
 |---|---|
 | Enabled | ✔ |
 | API Key | your key |
-| Account Lookup Field | leave blank (automatic). Only set it if `ogg__Location__c` has more than one lookup to Account. |
 | Use Places Fallback | ✔ if Places API (New) is enabled |
 | Country Code | `TH` (restricts Geocoding results to Thailand) |
 | Region | `th` (biases results to Thailand) |
 | Language | `th` (results come back in Thai, matching the Thai input) |
-| Original Latitude Field | e.g. `Latitude__c` |
-| Original Longitude Field | e.g. `Longitude__c` |
+| Original Latitude Field | `ogg__Latitude__c` |
+| Original Longitude Field | `ogg__Longitude__c` |
 | Batch Size | `30` (max 30, because one address can take up to 3 callouts) |
 | Timeout (ms) | `10000` |
 
@@ -215,9 +194,8 @@ A line like `source=GEOCODING_API lat=13.74... lng=100.53...` in the output mean
 |---|---|
 | `Invalid type: ogg__Location__c` | The ogg package isn't installed in this sandbox, or the object name differs. See 1.1. |
 | `No such column 'Address__c'` | The address field on Account has a different name. See 1.3. |
-| Log: `No lookup to Account found on ogg__Location__c` / `is not a lookup to Account` | Check *Account Lookup Field* in the custom setting. Leave it blank for automatic detection, or enter the API name of the lookup field. |
-| `Cannot change type of field` on Suggested_* | The fields already exist with another type. See 1.5. |
-| Test failure `REQUIRED_FIELD_MISSING` / `FIELD_CUSTOM_VALIDATION_EXCEPTION` | Add the required values in the test helpers. See 1.7. |
+| Test failure `FIELD_CUSTOM_VALIDATION_EXCEPTION` | A validation rule needs a specific value. Add it in `newAccount()` / `newLocation()`. See 1.3. |
+| Test failure `You have uncommitted work pending` | A test saved data and then called Google in the same transaction. Keep test settings in memory (`GoogleMapsSettings.cached = ...`) or make the callout after `Test.startTest()`. |
 | Test failure `Google_Maps_Settings__c: field "Latitude__c" does not exist` | The default original field names don't exist in this org. Change `DEFAULT_LATITUDE_FIELD` / `DEFAULT_LONGITUDE_FIELD` in `GoogleMapsSettings.cls` to your field names. The tests use the defaults because custom setting data isn't visible in tests. |
 | Test assertion fails on `mock.requests.size()` | UPWARD may create its own AccountLocation when an Account with an address is inserted. That adds callouts. Relax the count assertions, or insert the Account in the test without `Address__c` and set it afterwards. |
 

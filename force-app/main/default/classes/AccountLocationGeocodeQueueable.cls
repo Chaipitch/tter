@@ -1,6 +1,6 @@
 /**
  * Async job: for each ogg__Location__c, geocode the related Account's Address__c via Google Maps and store
- * Suggested_Latitude__c / Suggested_Longitude__c / Different_Distance__c.
+ * Suggested_Latitude__c / Suggested_Longtitude__c / Different_Distance__c.
  *
  * Processes GoogleMapsSettings.batchSize() records per execution and chains itself for the rest.
  * All callouts are made before the single DML statement (callouts after DML are not allowed).
@@ -48,12 +48,21 @@ public without sharing class AccountLocationGeocodeQueueable implements Queueabl
         String latField = GoogleMapsSettings.originalLatitudeField();
         String lngField = GoogleMapsSettings.originalLongitudeField();
 
-        // The Account lookup is found at run time (see GoogleMapsSettings.accountLookupField).
-        String accountRel = GoogleMapsSettings.accountRelationshipName();
-        String soql = 'SELECT Id, ' + accountRel + '.Address__c, ' + latField + ', ' + lngField
+        String soql = 'SELECT Id, ogg__ObjectId__c, ogg__RawAddress__c, ' + latField + ', ' + lngField
                     + ' FROM ogg__Location__c WHERE Id IN :ids';
         List<ogg__Location__c> records = Database.queryWithBinds(
             soql, new Map<String, Object>{ 'ids' => ids }, AccessLevel.SYSTEM_MODE);
+
+        // ogg__Location__c has no lookup to Account: ogg__ObjectId__c holds the source record's Id.
+        Set<Id> accountIds = new Set<Id>();
+        for (ogg__Location__c rec : records) {
+            Id accountId = toAccountId(rec.ogg__ObjectId__c);
+            if (accountId != null) {
+                accountIds.add(accountId);
+            }
+        }
+        Map<Id, Account> accounts = new Map<Id, Account>(
+            [SELECT Id, Address__c FROM Account WHERE Id IN :accountIds WITH SYSTEM_MODE]);
 
         GoogleGeocodingService service = new GoogleGeocodingService();
         List<ogg__Location__c> updates = new List<ogg__Location__c>();
@@ -64,8 +73,7 @@ public without sharing class AccountLocationGeocodeQueueable implements Queueabl
                 deferred.add(rec.Id);
                 continue;
             }
-            SObject acc = rec.getSObject(accountRel);
-            String address = acc == null ? null : (String) acc.get('Address__c');
+            String address = addressFor(rec, accounts);
             if (String.isBlank(address)) {
                 continue;
             }
@@ -84,7 +92,7 @@ public without sharing class AccountLocationGeocodeQueueable implements Queueabl
                 updates.add(new ogg__Location__c(
                     Id = rec.Id,
                     Suggested_Latitude__c  = suggestedLat,
-                    Suggested_Longitude__c = suggestedLng,
+                    Suggested_Longtitude__c = suggestedLng,
                     Different_Distance__c  = GeoDistanceUtil.distanceInMeters(
                         GeoDistanceUtil.toDecimal(rec.get(latField)),
                         GeoDistanceUtil.toDecimal(rec.get(lngField)),
@@ -106,5 +114,32 @@ public without sharing class AccountLocationGeocodeQueueable implements Queueabl
             }
         }
         return deferred;
+    }
+
+    /**
+     * Account.Address__c of the Account in ogg__ObjectId__c. Falls back to the location's own
+     * ogg__RawAddress__c when the record is not linked to an Account (or the Account is gone).
+     */
+    @TestVisible
+    private static String addressFor(ogg__Location__c rec, Map<Id, Account> accounts) {
+        Account acc = accounts.get(toAccountId(rec.ogg__ObjectId__c));
+        if (acc != null) {
+            return acc.Address__c;
+        }
+        return rec.ogg__RawAddress__c;
+    }
+
+    /** The value as an Account Id, or null if it is blank, not an Id, or the Id of another object. */
+    @TestVisible
+    private static Id toAccountId(String value) {
+        if (String.isBlank(value)) {
+            return null;
+        }
+        try {
+            Id recordId = Id.valueOf(value.trim());
+            return recordId.getSObjectType() == Account.SObjectType ? recordId : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

@@ -13,7 +13,7 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
-        <field>ogg__Location__c.Suggested_Longitude__c</field>
+        <field>ogg__Location__c.Suggested_Longtitude__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <hasActivationRequired>false</hasActivationRequired>

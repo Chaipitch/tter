@@ -9,15 +9,15 @@ private class GoogleGeocodingServiceTest {
         '622 ถนนสุขุมวิท แขวงคลองตัน เขตคลองเตย กรุงเทพมหานคร 10110';
 
     private static void configure(Boolean placesFallback) {
-        insert new Google_Maps_Settings__c(
-            SetupOwnerId = UserInfo.getOrganizationId(),
+        // In memory only: a DML insert here would block the (mocked) callouts with
+        // "You have uncommitted work pending".
+        GoogleMapsSettings.cached = new Google_Maps_Settings__c(
             Enabled__c = true,
             API_Key__c = 'TEST_KEY',
             Country_Code__c = 'TH',
             Region__c = 'th',
             Language__c = 'th',
             Use_Places_Fallback__c = placesFallback);
-        GoogleMapsSettings.cached = null;
     }
 
     private static GoogleMapsCalloutMock mock() {
@@ -188,6 +188,9 @@ private class GoogleGeocodingServiceTest {
         Assert.areEqual(GoogleMapsSettings.DEFAULT_BATCH_SIZE, GoogleMapsSettings.batchSize());
         Assert.areEqual(GoogleMapsSettings.DEFAULT_TIMEOUT_MS, GoogleMapsSettings.timeoutMs());
         Assert.isNull(GoogleMapsSettings.countryCode());
+        Assert.isFalse(GoogleMapsSettings.usePlacesFallback());
+        Assert.areEqual('ogg__Latitude__c', GoogleMapsSettings.originalLatitudeField());
+        Assert.areEqual('ogg__Longitude__c', GoogleMapsSettings.originalLongitudeField());
 
         GoogleMapsSettings.cached = new Google_Maps_Settings__c(
             Batch_Size__c = 500, Timeout_Ms__c = 999999, Original_Latitude_Field__c = 'Does_Not_Exist__c');
@@ -198,20 +201,6 @@ private class GoogleGeocodingServiceTest {
             Assert.fail('Expected ConfigurationException');
         } catch (GoogleMapsSettings.ConfigurationException e) {
             Assert.isTrue(e.getMessage().contains('Does_Not_Exist__c'));
-        }
-
-        // Account lookup: auto-detected when blank, validated when configured
-        GoogleMapsSettings.cached = new Google_Maps_Settings__c();
-        String lookup = GoogleMapsSettings.accountLookupField();
-        Assert.isNotNull(lookup);
-        Assert.isNotNull(GoogleMapsSettings.accountRelationshipName());
-
-        GoogleMapsSettings.cached = new Google_Maps_Settings__c(Account_Lookup_Field__c = 'Does_Not_Exist__c');
-        try {
-            GoogleMapsSettings.accountLookupField();
-            Assert.fail('Expected ConfigurationException');
-        } catch (GoogleMapsSettings.ConfigurationException e) {
-            Assert.isTrue(e.getMessage().contains('is not a lookup to Account'));
         }
     }
 }

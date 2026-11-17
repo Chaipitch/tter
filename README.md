@@ -2,10 +2,10 @@
 
 This SFDX project adds Apex that checks the Account's single-field address against Google Maps every time an `ogg__Location__c` record is created. It stores Google's coordinates next to the ones UPWARD saved:
 
-| Field (on `ogg__Location__c`) | Content |
+| Existing field on `ogg__Location__c` | Content |
 |---|---|
 | `Suggested_Latitude__c` | Latitude from Google Maps for the related Account's `Address__c` |
-| `Suggested_Longitude__c` | Longitude from Google Maps for the related Account's `Address__c` |
+| `Suggested_Longtitude__c` | Longitude from Google Maps for the related Account's `Address__c` |
 | `Different_Distance__c` | Distance in **meters** between the original and the suggested coordinates |
 
 ## How it works
@@ -14,7 +14,7 @@ This SFDX project adds Apex that checks the Account's single-field address again
 ogg__Location__c inserted
    └─ AccountLocationTrigger (after insert)
         └─ AccountLocationTriggerHandler.afterInsert  ── enqueues ──►  AccountLocationGeocodeQueueable  (Database.AllowsCallouts)
-                                                                         ├─ SOQL: <Account lookup>.Address__c + original lat/lng
+                                                                         ├─ Account Id from ogg__ObjectId__c → Account.Address__c   (fallback: ogg__RawAddress__c)
                                                                          ├─ ThaiAddressNormalizer.prepare(address)   Thai digits, ถ./ซ./กทม. ..., drop room/floor
                                                                          ├─ GoogleGeocodingService.findCoordinates(address)   max 3 callouts, stops at first good result
                                                                          │     1. Geocoding API  – without room/floor
@@ -42,27 +42,27 @@ force-app/main/default/
 │   ├── ThaiAddressNormalizer.cls             cleans Thai addresses into search variants + postcode
 │   ├── GeoDistanceUtil.cls                   distance (meters) helper
 │   ├── GoogleMapsCalloutMock.cls             @IsTest HTTP mock
+│   ├── TestRecordFactory.cls                 @IsTest records with the org's required fields filled in
 │   ├── AccountLocationGeocodingTest.cls      end-to-end trigger/queueable tests
 │   ├── GoogleGeocodingServiceTest.cls
 │   ├── GeoDistanceUtilTest.cls
 │   └── ThaiAddressNormalizerTest.cls
 ├── triggers/AccountLocationTrigger.trigger
-├── objects/
-│   ├── ogg__Location__c/fields/            Suggested_Latitude__c, Suggested_Longitude__c, Different_Distance__c
-│   └── Google_Maps_Settings__c/              hierarchy custom setting (API key, switches, field mapping)
+├── objects/Google_Maps_Settings__c/          hierarchy custom setting (API key, switches, field mapping)
 ├── remoteSiteSettings/                       maps.googleapis.com, places.googleapis.com
-└── permissionsets/AccountLocation_Geocoding  read access to the 3 new fields
+└── permissionsets/AccountLocation_Geocoding  read access to the 3 suggested/distance fields
 manifest/package.xml                          deployment manifest
 scripts/apex/                                 anonymous Apex: configure settings, probe an address, back-fill old records
 docs/DEPLOYMENT_GUIDE.md                      ← start here
 docs/TESTING_GUIDE.md
 ```
 
-## Assumptions to confirm before deploying
+## Org facts this project relies on
 
-These are covered in detail in [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md#1-pre-deployment-checks-in-the-sandbox):
-
-1. The object is `ogg__Location__c` (the ogg package's AccountLocation object) and the address is `Account.Address__c`. The lookup from `ogg__Location__c` to Account is found automatically at run time, or set in `Account_Lookup_Field__c` if there's more than one.
-2. The Account address field is `Account.Address__c`.
-3. The API names of the original latitude/longitude fields. These are set in the custom setting, so no code change is needed.
-4. Whether `Suggested_Latitude__c`, `Suggested_Longitude__c` and `Different_Distance__c` already exist in the org.
+| Item | API name |
+|---|---|
+| AccountLocation object (ogg package) | `ogg__Location__c` |
+| Link to the Account | `ogg__ObjectId__c` (Text 18, the Account Id; `ogg__prefix__c` = `001`). There's no lookup field. |
+| Address on Account | `Account.Address__c`. If the location isn't linked to an Account, `ogg__Location__c.ogg__RawAddress__c` is used instead. |
+| Original coordinates | `ogg__Latitude__c`, `ogg__Longitude__c` |
+| Target fields (already in the org, **not** deployed by this project) | `Suggested_Latitude__c`, `Suggested_Longtitude__c` (spelled *Longtitude* in the org), `Different_Distance__c` |

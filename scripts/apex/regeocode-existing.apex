@@ -1,4 +1,4 @@
-// Back-fills Suggested_Latitude__c / Suggested_Longitude__c / Different_Distance__c for EXISTING
+// Back-fills Suggested_Latitude__c / Suggested_Longtitude__c / Different_Distance__c for EXISTING
 // ogg__Location__c records (the trigger only handles new records).
 // Records whose Account has a blank Address__c are skipped by the job.
 // The job processes Batch_Size__c records and chains itself for the rest.
