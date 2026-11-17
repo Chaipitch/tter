@@ -60,9 +60,9 @@ The running user needs no access to the target fields. The job runs in system mo
 
 ### 1.6 Old trigger in `tterakit-sb`
 
-Earlier versions ran automatically through `AccountLocationTrigger` (with `AccountLocationTriggerHandler`). That trigger is already deployed in `tterakit-sb`. It's now replaced by the button, so it must be **removed** in the same deployment. Otherwise it keeps firing on every new record. The deploy commands in step 3 do this with `--post-destroy manifest/destructiveChanges.xml`.
+Earlier versions ran automatically through `AccountLocationTrigger` (with `AccountLocationTriggerHandler`). That trigger is already deployed in `tterakit-sb`. It's now replaced by the button, so it must be **removed** in the same deployment. Otherwise it keeps firing on every new record. The deploy commands in step 3 do this with `--post-destructive-changes manifest/destructiveChanges.xml`.
 
-For an org that never had the trigger (for example production), leave out `--post-destroy`.
+For an org that never had the trigger (for example production), leave out `--post-destructive-changes`.
 
 ---
 
@@ -103,11 +103,11 @@ sf project deploy validate \
   --tests GoogleGeocodingServiceTest \
   --tests GeoDistanceUtilTest \
   --tests ThaiAddressNormalizerTest \
-  --post-destroy manifest/destructiveChanges.xml \
+  --post-destructive-changes manifest/destructiveChanges.xml \
   --wait 30
 ```
 
-Fix any errors that come up. Section 6 lists the common ones. `--post-destroy` removes the old trigger and handler (see 1.6); leave it out for an org that never had them.
+Fix any errors that come up. Section 6 lists the common ones. `--post-destructive-changes` removes the old trigger and handler (see 1.6); leave it out for an org that never had them.
 
 ### 3.3 Deploy
 
@@ -120,7 +120,7 @@ sf project deploy start \
   --tests GoogleGeocodingServiceTest \
   --tests GeoDistanceUtilTest \
   --tests ThaiAddressNormalizerTest \
-  --post-destroy manifest/destructiveChanges.xml \
+  --post-destructive-changes manifest/destructiveChanges.xml \
   --wait 30
 ```
 
@@ -222,6 +222,6 @@ A line like `source=GEOCODING_API lat=13.74... lng=100.53...` in the output mean
 
 ## 8. Promoting to production later
 
-* Use `--test-level RunSpecifiedTests` with the four test classes (or `RunLocalTests`). Production requires 75% coverage overall. **Leave out `--post-destroy`**: production never had the trigger.
+* Use `--test-level RunSpecifiedTests` with the four test classes (or `RunLocalTests`). Production requires 75% coverage overall. **Leave out `--post-destructive-changes`**: production never had the trigger.
 * Repeat steps 3.4, 3.5 and 4 in production, using a **production** API key with its own quota.
 * To fill in many records at once (instead of clicking the button on each), run `scripts/apex/regeocode-existing.apex`.

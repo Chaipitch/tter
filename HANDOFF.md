@@ -19,7 +19,7 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
 
 ## Next steps
 
-1. **Deploy the button version to `tterakit-sb` and remove the old trigger in the same deployment** (`--post-destroy manifest/destructiveChanges.xml`). Validate first. The commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#3-deploy).
+1. **Deploy the button version to `tterakit-sb` and remove the old trigger in the same deployment** (`--post-destructive-changes manifest/destructiveChanges.xml`). Validate first. The commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#3-deploy).
 2. **Google Cloud:** enable billing, then the **Geocoding API** and **Places API (New)**. Create an API key restricted to those two APIs, and set daily quotas. ([DEPLOYMENT_GUIDE §2](docs/DEPLOYMENT_GUIDE.md#2-google-maps-platform-setup))
 3. **Turn it on:** paste the key into `scripts/apex/configure-settings.apex`, then run:
 
@@ -44,7 +44,7 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
    Expect `postcodeMatch=true`.
 6. **Test with real data:** run TC-01 – TC-12 in [TESTING_GUIDE](docs/TESTING_GUIDE.md). The most important is TC-03: 10–20 real customer addresses where UPWARD's pin is known to be wrong, checked in Google Maps. Agree with the business what distance counts as wrong. The guide suggests over 50 m needs review and over 500 m is probably wrong.
 7. **Many records at once** (optional): run `scripts/apex/regeocode-existing.apex`.
-8. **Production:** the same deploy command **without** `--post-destroy`, a production API key and quota, then steps 3–4 and 7.
+8. **Production:** the same deploy command **without** `--post-destructive-changes`, a production API key and quota, then steps 3–4 and 7.
 
 ## Org facts the code relies on
 
