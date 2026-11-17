@@ -76,7 +76,7 @@ Create each Account the way users normally do, so that UPWARD creates the Accoun
 * With SOQL:
 
   ```bash
-  sf data query --target-org tterakit-sb --query "SELECT Id, Name, Account__r.Address__c, Suggested_Latitude__c, Suggested_Longitude__c, Different_Distance__c FROM AccountLocation__c ORDER BY CreatedDate DESC LIMIT 20"
+  sf data query --target-org tterakit-sb --query "SELECT Id, Name, ogg__Account__r.Address__c, Suggested_Latitude__c, Suggested_Longitude__c, Different_Distance__c FROM ogg__Location__c ORDER BY CreatedDate DESC LIMIT 20"
   ```
 
   Add your original latitude/longitude field names to the `SELECT` to compare them.
@@ -114,7 +114,7 @@ The output first shows the query variants built from the Thai address (`withoutU
 | Suggested fields never fill, no Apex Job | Custom setting: *Enabled* checked, API key present, and it is the **Organization** default. Check that the trigger is Active. |
 | Job *Completed* but fields blank | Debug log of the Automated Process user / record creator. `REQUEST_DENIED` = key or API not enabled / restricted. `OVER_QUERY_LIMIT` = quota or billing. `No Google Maps result` = address not found. |
 | `Unauthorized endpoint` in log | Remote Site Setting missing or inactive. |
-| `field "..." does not exist on AccountLocation__c` | *Original Latitude/Longitude Field* in the setting is wrong. |
+| `field "..." does not exist on ogg__Location__c` | *Original Latitude/Longitude Field* in the setting is wrong. |
 | `Different_Distance__c` blank but Suggested filled | The original coordinates were empty when the job ran. It's recalculated automatically when they're set. |
 | `queueable limit reached` in log | The record was inserted from async code that had already used its one enqueue slot. Run `regeocode-existing.apex` for those records. |
 | Wrong country results | Set *Country Code* = `TH` and *Region* = `th`. |

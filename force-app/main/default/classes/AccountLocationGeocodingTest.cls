@@ -1,7 +1,7 @@
 /**
  * End-to-end tests: AccountLocationTrigger -> AccountLocationTriggerHandler -> AccountLocationGeocodeQueueable.
  *
- * NOTE: if your org has extra required fields / validation rules on Account or AccountLocation__c,
+ * NOTE: if your org has extra required fields / validation rules on Account or ogg__Location__c,
  * add them in newAccount() / newLocation() below.
  */
 @IsTest
@@ -41,21 +41,21 @@ private class AccountLocationGeocodingTest {
         return a;
     }
 
-    private static AccountLocation__c newLocation(Id accountId, Decimal lat, Decimal lng) {
-        AccountLocation__c loc = new AccountLocation__c(Account__c = accountId);
+    private static ogg__Location__c newLocation(Id accountId, Decimal lat, Decimal lng) {
+        ogg__Location__c loc = new ogg__Location__c(ogg__Account__c = accountId);
         loc.put(GoogleMapsSettings.originalLatitudeField(), lat);
         loc.put(GoogleMapsSettings.originalLongitudeField(), lng);
         return loc;
     }
 
-    private static AccountLocation__c reload(Id recordId) {
+    private static ogg__Location__c reload(Id recordId) {
         String soql = 'SELECT Id, Suggested_Latitude__c, Suggested_Longitude__c, Different_Distance__c, '
             + GoogleMapsSettings.originalLatitudeField() + ', ' + GoogleMapsSettings.originalLongitudeField()
-            + ' FROM AccountLocation__c WHERE Id = :recordId';
+            + ' FROM ogg__Location__c WHERE Id = :recordId';
         return Database.queryWithBinds(soql, new Map<String, Object>{ 'recordId' => recordId }, AccessLevel.SYSTEM_MODE)[0];
     }
 
-    private static Decimal expectedDistance(AccountLocation__c rec) {
+    private static Decimal expectedDistance(ogg__Location__c rec) {
         return GeoDistanceUtil.distanceInMeters(
             GeoDistanceUtil.toDecimal(rec.get(GoogleMapsSettings.originalLatitudeField())),
             GeoDistanceUtil.toDecimal(rec.get(GoogleMapsSettings.originalLongitudeField())),
@@ -71,11 +71,11 @@ private class AccountLocationGeocodingTest {
         Account acc = newAccount(THAI_ADDRESS);
 
         Test.startTest();
-        AccountLocation__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
+        ogg__Location__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
         insert loc;
         Test.stopTest();
 
-        AccountLocation__c rec = reload(loc.Id);
+        ogg__Location__c rec = reload(loc.Id);
         Assert.areEqual(SUGGESTED_LAT, rec.Suggested_Latitude__c);
         Assert.areEqual(SUGGESTED_LNG, rec.Suggested_Longitude__c);
         Assert.isNotNull(rec.Different_Distance__c, 'Distance should be calculated');
@@ -92,11 +92,11 @@ private class AccountLocationGeocodingTest {
         Account acc = newAccount(THAI_ADDRESS);
 
         Test.startTest();
-        AccountLocation__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
+        ogg__Location__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
         insert loc;
         Test.stopTest();
 
-        AccountLocation__c rec = reload(loc.Id);
+        ogg__Location__c rec = reload(loc.Id);
         Assert.isNull(rec.Suggested_Latitude__c);
         Assert.isNull(rec.Suggested_Longitude__c);
         Assert.isNull(rec.Different_Distance__c);
@@ -110,7 +110,7 @@ private class AccountLocationGeocodingTest {
         Account acc = newAccount(null);
 
         Test.startTest();
-        AccountLocation__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
+        ogg__Location__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
         insert loc;
         Test.stopTest();
 
@@ -127,7 +127,7 @@ private class AccountLocationGeocodingTest {
         Account acc = newAccount(THAI_ADDRESS);
 
         Test.startTest();
-        AccountLocation__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
+        ogg__Location__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
         insert loc;
         Test.stopTest();
 
@@ -142,11 +142,11 @@ private class AccountLocationGeocodingTest {
         Account acc = newAccount(THAI_ADDRESS);
 
         Test.startTest();
-        AccountLocation__c loc = newLocation(acc.Id, null, null);
+        ogg__Location__c loc = newLocation(acc.Id, null, null);
         insert loc;
         Test.stopTest();
 
-        AccountLocation__c rec = reload(loc.Id);
+        ogg__Location__c rec = reload(loc.Id);
         Assert.areEqual(SUGGESTED_LAT, rec.Suggested_Latitude__c);
         Assert.isNull(rec.Different_Distance__c, 'No distance without original coordinates');
 
@@ -155,7 +155,7 @@ private class AccountLocationGeocodingTest {
         rec.put(GoogleMapsSettings.originalLongitudeField(), ORIGINAL_LNG);
         update rec;
 
-        AccountLocation__c after = reload(loc.Id);
+        ogg__Location__c after = reload(loc.Id);
         Assert.isNotNull(after.Different_Distance__c);
         Assert.areEqual(expectedDistance(after), after.Different_Distance__c);
     }
@@ -168,7 +168,7 @@ private class AccountLocationGeocodingTest {
 
         Test.startTest();
         AccountLocationTriggerHandler.bypass = true;
-        AccountLocation__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
+        ogg__Location__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
         insert loc;
         AccountLocationTriggerHandler.bypass = false;
         Test.stopTest();
@@ -183,7 +183,7 @@ private class AccountLocationGeocodingTest {
         GoogleMapsCalloutMock mock = mockPreciseResult();
         Account acc = newAccount(THAI_ADDRESS);
 
-        List<AccountLocation__c> locs = new List<AccountLocation__c>();
+        List<ogg__Location__c> locs = new List<ogg__Location__c>();
         for (Integer i = 0; i < 60; i++) {
             locs.add(newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG));
         }
@@ -193,7 +193,7 @@ private class AccountLocationGeocodingTest {
         Test.stopTest();
 
         Integer populated = 0;
-        for (AccountLocation__c rec : [SELECT Suggested_Latitude__c FROM AccountLocation__c WHERE Id IN :locs]) {
+        for (ogg__Location__c rec : [SELECT Suggested_Latitude__c FROM ogg__Location__c WHERE Id IN :locs]) {
             if (rec.Suggested_Latitude__c != null) {
                 populated++;
             }

@@ -61,14 +61,14 @@ public without sharing class GoogleMapsSettings {
         return validatedField(get().Original_Longitude_Field__c, DEFAULT_LONGITUDE_FIELD);
     }
 
-    /** Ensures the configured API name is a real field on AccountLocation__c (also prevents SOQL injection). */
+    /** Ensures the configured API name is a real field on ogg__Location__c (also prevents SOQL injection). */
     private static String validatedField(String configured, String fallback) {
         String name = String.isBlank(configured) ? fallback : configured.trim();
-        Map<String, Schema.SObjectField> fields = Schema.SObjectType.AccountLocation__c.fields.getMap();
+        Map<String, Schema.SObjectField> fields = Schema.SObjectType.ogg__Location__c.fields.getMap();
         Schema.SObjectField f = fields.get(name.toLowerCase());
         if (f == null) {
             throw new ConfigurationException(
-                'Google_Maps_Settings__c: field "' + name + '" does not exist on AccountLocation__c.');
+                'Google_Maps_Settings__c: field "' + name + '" does not exist on ogg__Location__c.');
         }
         return f.getDescribe().getName();
     }

@@ -3,17 +3,17 @@
     <description>Read access to the Google Maps suggested coordinates and distance on AccountLocation.</description>
     <fieldPermissions>
         <editable>false</editable>
-        <field>AccountLocation__c.Different_Distance__c</field>
+        <field>ogg__Location__c.Different_Distance__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
-        <field>AccountLocation__c.Suggested_Latitude__c</field>
+        <field>ogg__Location__c.Suggested_Latitude__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
-        <field>AccountLocation__c.Suggested_Longitude__c</field>
+        <field>ogg__Location__c.Suggested_Longitude__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <hasActivationRequired>false</hasActivationRequired>
