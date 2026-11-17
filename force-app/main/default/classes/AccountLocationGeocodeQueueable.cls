@@ -87,8 +87,7 @@ public without sharing class AccountLocationGeocodeQueueable implements Queueabl
                 Decimal suggestedLat = result.latitude.setScale(7, RoundingMode.HALF_UP);
                 Decimal suggestedLng = result.longitude.setScale(7, RoundingMode.HALF_UP);
                 // Only the fields this job owns are written; the original coordinates are never touched.
-                // Distance is set here and also recalculated by the before-update trigger (same value),
-                // so it stays correct even if the trigger handler is bypassed.
+                // Distance is calculated from UPWARD's pin as it is right now.
                 updates.add(new ogg__Location__c(
                     Id = rec.Id,
                     Suggested_Latitude__c  = suggestedLat,

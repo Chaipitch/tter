@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
-    <description>Read access to the Google Maps suggested coordinates and distance on AccountLocation.</description>
+    <classAccesses>
+        <apexClass>AccountLocationGeocodeAction</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <description>Use the "Suggest Location (Google)" quick action and read the suggested coordinates and distance on oggLocation.</description>
     <fieldPermissions>
         <editable>false</editable>
         <field>ogg__Location__c.Different_Distance__c</field>

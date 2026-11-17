@@ -58,9 +58,11 @@ When a test inserts an Account with an address, UPWARD may create its own `ogg__
 
 The running user needs no access to the target fields. The job runs in system mode. To see the fields on the page, give your users read access, either through the permission set in step 3.4 or through their profile.
 
-### 1.6 Existing triggers on AccountLocation
+### 1.6 Old trigger in `tterakit-sb`
 
-Check **Object Manager → AccountLocation → Triggers**. A second trigger on the same object works, but the execution order between triggers is not guaranteed. If your org uses a trigger framework (one trigger per object), call `AccountLocationTriggerHandler.afterInsert(...)` and `.beforeUpdate(...)` from your existing trigger. Then remove `AccountLocationTrigger` from the manifest.
+Earlier versions ran automatically through `AccountLocationTrigger` (with `AccountLocationTriggerHandler`). That trigger is already deployed in `tterakit-sb`. It's now replaced by the button, so it must be **removed** in the same deployment. Otherwise it keeps firing on every new record. The deploy commands in step 3 do this with `--post-destroy manifest/destructiveChanges.xml`.
+
+For an org that never had the trigger (for example production), leave out `--post-destroy`.
 
 ---
 
@@ -101,10 +103,11 @@ sf project deploy validate \
   --tests GoogleGeocodingServiceTest \
   --tests GeoDistanceUtilTest \
   --tests ThaiAddressNormalizerTest \
+  --post-destroy manifest/destructiveChanges.xml \
   --wait 30
 ```
 
-Fix any errors that come up. Section 6 lists the common ones.
+Fix any errors that come up. Section 6 lists the common ones. `--post-destroy` removes the old trigger and handler (see 1.6); leave it out for an org that never had them.
 
 ### 3.3 Deploy
 
@@ -117,6 +120,7 @@ sf project deploy start \
   --tests GoogleGeocodingServiceTest \
   --tests GeoDistanceUtilTest \
   --tests ThaiAddressNormalizerTest \
+  --post-destroy manifest/destructiveChanges.xml \
   --wait 30
 ```
 
@@ -124,15 +128,22 @@ If the validation passed, you can quick-deploy it instead: `sf project deploy qu
 
 ### 3.4 Assign the permission set
 
-This gives users read access to the three new fields:
+The permission set lets users run the button (access to the `AccountLocationGeocodeAction` Apex class) and read the three suggested/distance fields:
 
 ```bash
 sf org assign permset --name AccountLocation_Geocoding --target-org tterakit-sb
 ```
 
-To assign it to other users, add `--on-behalf-of user@example.com`, or assign it in Setup.
+To assign it to other users, add `--on-behalf-of user@example.com`, or assign it in Setup. Users without it get an error when they click the button.
 
-Also add the three fields to the **AccountLocation page layout / Lightning record page** so testers can see them.
+### 3.5 Put the button on the record page
+
+The quick action is deployed, but it only shows once it's on the page.
+
+* **Page layout** (most orgs): Setup → Object Manager → **oggLocation** → Page Layouts → open the layout → **Mobile & Lightning Actions** → drag **Suggest Location (Google)** into *Salesforce Mobile and Lightning Experience Actions* → Save. If that section shows "predefined actions", click the wrench icon first to override them.
+* **Lightning record page with Dynamic Actions:** Lightning App Builder → select the Highlights Panel → **Add Action** → *Suggest Location (Google)* → Save.
+
+Also add `Suggested Latitude`, `Suggested Longtitude` and `Different Distance` to the layout if they aren't there yet.
 
 ---
 
@@ -203,17 +214,14 @@ A line like `source=GEOCODING_API lat=13.74... lng=100.53...` in the output mean
 
 ## 7. Rollback
 
-* **Quick off switch:** uncheck `Enabled__c` in the custom setting. The trigger then does nothing.
-* **Full removal:** use a destructive deployment for the trigger and classes. Keep the fields if their data is needed.
-
-  ```bash
-  sf project delete source --metadata ApexTrigger:AccountLocationTrigger --target-org tterakit-sb
-  ```
+* **Quick off switch:** uncheck `Enabled__c` in the custom setting. The button then shows *"Google Maps lookup is turned off"*.
+* **Hide the button:** remove it from the page layout / Lightning page.
+* **Full removal:** delete the quick action, LWC and classes with a destructive deployment. Keep the fields if their data is needed.
 
 ---
 
 ## 8. Promoting to production later
 
-* Use `--test-level RunSpecifiedTests` with the four test classes (or `RunLocalTests`). Production requires 75% coverage overall and at least 1% for each trigger.
-* Repeat steps 3.4 and 4 in production, using a **production** API key with its own quota.
-* To back-fill records created before go-live, run `scripts/apex/regeocode-existing.apex`. The trigger only handles new records.
+* Use `--test-level RunSpecifiedTests` with the four test classes (or `RunLocalTests`). Production requires 75% coverage overall. **Leave out `--post-destroy`**: production never had the trigger.
+* Repeat steps 3.4, 3.5 and 4 in production, using a **production** API key with its own quota.
+* To fill in many records at once (instead of clicking the button on each), run `scripts/apex/regeocode-existing.apex`.
