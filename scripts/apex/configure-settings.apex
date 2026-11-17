@@ -1,6 +1,6 @@
 // Creates / updates the Organization Default of Google_Maps_Settings__c.
 // 1. Replace the placeholder API key (do NOT commit a real key to git).
-// 2. Adjust the original latitude/longitude field API names to match ogg__Location__c in your org.
+// 2. The original latitude/longitude fields are ogg__Latitude__c / ogg__Longitude__c (the defaults).
 // Run:  sf apex run --file scripts/apex/configure-settings.apex --target-org tterakit-sb
 Google_Maps_Settings__c s = Google_Maps_Settings__c.getOrgDefaults();
 if (s == null || s.Id == null) {
@@ -12,9 +12,8 @@ s.Country_Code__c             = 'TH';          // restrict Geocoding results to 
 s.Region__c                   = 'th';          // result bias, blank = none
 s.Language__c                 = 'th';          // Thai addresses -> Thai results
 s.Use_Places_Fallback__c      = true;          // requires "Places API (New)" enabled on the key; helps with building names
-s.Original_Latitude_Field__c  = 'Latitude__c'; // <-- CHANGE to the real field API name
-s.Original_Longitude_Field__c = 'Longitude__c';// <-- CHANGE to the real field API name
-s.Account_Lookup_Field__c     = null;          // blank = find the lookup to Account automatically
+s.Original_Latitude_Field__c  = 'ogg__Latitude__c';   // UPWARD original latitude
+s.Original_Longitude_Field__c = 'ogg__Longitude__c';  // UPWARD original longitude
 s.Batch_Size__c               = 30;          // max 30 (up to 3 callouts per address)
 s.Timeout_Ms__c               = 10000;
 upsert s;

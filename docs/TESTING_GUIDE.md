@@ -76,10 +76,10 @@ Create each Account the way users normally do, so that UPWARD creates the Accoun
 * With SOQL:
 
   ```bash
-  sf data query --target-org tterakit-sb --query "SELECT Id, Name, Suggested_Latitude__c, Suggested_Longitude__c, Different_Distance__c FROM ogg__Location__c ORDER BY CreatedDate DESC LIMIT 20"
+  sf data query --target-org tterakit-sb --query "SELECT Id, Name, ogg__ObjectId__c, ogg__Latitude__c, ogg__Longitude__c, Suggested_Latitude__c, Suggested_Longtitude__c, Different_Distance__c FROM ogg__Location__c ORDER BY CreatedDate DESC LIMIT 20"
   ```
 
-  Add your original latitude/longitude field names to the `SELECT` to compare them.
+  `ogg__ObjectId__c` is the linked Account Id, and `ogg__Latitude__c` / `ogg__Longitude__c` are UPWARD's original pin.
 
 ---
 
@@ -87,7 +87,7 @@ Create each Account the way users normally do, so that UPWARD creates the Accoun
 
 For a sample of records:
 
-1. Open `https://www.google.com/maps?q=<Suggested_Latitude__c>,<Suggested_Longitude__c>` and confirm it shows the customer's location.
+1. Open `https://www.google.com/maps?q=<Suggested_Latitude__c>,<Suggested_Longtitude__c>` and confirm it shows the customer's location.
 2. Open `https://www.google.com/maps?q=<original lat>,<original lng>` to see the UPWARD pin.
 3. Measure the distance between the two pins in Google Maps (right click → *Measure distance*). It should match `Different_Distance__c` within a few meters. The code uses great-circle distance.
 
