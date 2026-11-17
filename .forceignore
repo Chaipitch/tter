@@ -1,0 +1,5 @@
+# Files not deployed to the org
+**/jsconfig.json
+**/.eslintrc.json
+**/__tests__/**
+package.xml
