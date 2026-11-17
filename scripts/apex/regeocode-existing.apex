@@ -1,5 +1,5 @@
 // Back-fills Suggested_Latitude__c / Suggested_Longtitude__c / Different_Distance__c for EXISTING
-// ogg__Location__c records (the trigger only handles new records).
+// ogg__Location__c records at once (instead of clicking the button on each record).
 // Records whose Account has a blank Address__c are skipped by the job.
 // The job processes Batch_Size__c records and chains itself for the rest.
 // Run:  sf apex run --file scripts/apex/regeocode-existing.apex --target-org tterakit-sb

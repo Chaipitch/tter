@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
+        <members>AccountLocationGeocodeAction</members>
         <members>AccountLocationGeocodeQueueable</members>
         <members>AccountLocationGeocodingTest</members>
-        <members>AccountLocationTriggerHandler</members>
         <members>GeoDistanceUtil</members>
         <members>GeoDistanceUtilTest</members>
         <members>GoogleGeocodingService</members>
@@ -14,10 +14,6 @@
         <members>ThaiAddressNormalizer</members>
         <members>ThaiAddressNormalizerTest</members>
         <name>ApexClass</name>
-    </types>
-    <types>
-        <members>AccountLocationTrigger</members>
-        <name>ApexTrigger</name>
     </types>
     <types>
         <members>Google_Maps_Settings__c.API_Key__c</members>
@@ -37,8 +33,16 @@
         <name>CustomObject</name>
     </types>
     <types>
+        <members>suggestGoogleLocation</members>
+        <name>LightningComponentBundle</name>
+    </types>
+    <types>
         <members>AccountLocation_Geocoding</members>
         <name>PermissionSet</name>
+    </types>
+    <types>
+        <members>ogg__Location__c.Suggest_Google_Location</members>
+        <name>QuickAction</name>
     </types>
     <types>
         <members>Google_Maps_Geocoding_API</members>

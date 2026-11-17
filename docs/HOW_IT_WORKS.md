@@ -1,6 +1,6 @@
 # How It Works
 
-This explains how the Google Maps "suggested coordinates" feature for `ogg__Location__c` works, from the moment a record is created to the values on the page. For deployment see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md); for testing see [TESTING_GUIDE.md](TESTING_GUIDE.md).
+This explains how the Google Maps "suggested coordinates" feature for `ogg__Location__c` works, from the click on the **Suggest Location (Google)** button to the values on the page. For deployment see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md); for testing see [TESTING_GUIDE.md](TESTING_GUIDE.md).
 
 ---
 
@@ -8,7 +8,7 @@ This explains how the Google Maps "suggested coordinates" feature for `ogg__Loca
 
 Customers keep their whole address in one field, `Account.Address__c`. When that field is filled in, UPWARD creates an `ogg__Location__c` record with a latitude/longitude and a map pin. If the address doesn't exactly match Google's data, UPWARD's pin can land in the wrong place.
 
-This feature gives a second opinion. It sends the same address to Google Maps itself and stores Google's coordinates next to UPWARD's. It also stores the distance between the two pins, so wrong pins are easy to spot.
+This feature gives a second opinion **on demand**. A user clicks a button on the oggLocation record; the address is sent to Google Maps and Google's coordinates are stored next to UPWARD's. The distance between the two pins is stored too, so wrong pins are easy to spot. Nothing happens automatically when records are created or changed.
 
 | Field on `ogg__Location__c` | Set by | Meaning |
 |---|---|---|
@@ -23,43 +23,51 @@ This feature gives a second opinion. It sends the same address to Google Maps it
 ## 2. The big picture
 
 ```
-User / integration saves Account.Address__c
+UPWARD has created ogg__Location__c  (ogg__ObjectId__c = Account Id, ogg__Latitude__c / ogg__Longitude__c)
         │
         ▼
-UPWARD creates ogg__Location__c  (ogg__ObjectId__c = Account Id, ogg__Latitude__c / ogg__Longitude__c)
+User clicks "Suggest Location (Google)"  (quick action → LWC suggestGoogleLocation)
+        │  AccountLocationGeocodeAction.enqueue(recordId)
+        ▼
+AccountLocationGeocodeQueueable  (background job, usually done in a few seconds)
+   1. read ogg__ObjectId__c, find the Account, read Address__c
+   2. ThaiAddressNormalizer: clean the address
+   3. GoogleGeocodingService: ask Google (max 3 calls)
+   4. GeoDistanceUtil: distance in meters
+   5. update Suggested_* and Different_Distance__c
         │
         ▼
-AccountLocationTrigger  ── after insert ──►  AccountLocationTriggerHandler.afterInsert
-                                                   │  enqueue (callouts are not allowed in triggers)
-                                                   ▼
-                                     AccountLocationGeocodeQueueable  (async, a few seconds later)
-                                       1. read ogg__ObjectId__c, find the Account, read Address__c
-                                       2. ThaiAddressNormalizer: clean the address
-                                       3. GoogleGeocodingService: ask Google (max 3 calls)
-                                       4. GeoDistanceUtil: distance in meters
-                                       5. update Suggested_* and Different_Distance__c
-                                                   │
-                                                   ▼
-AccountLocationTrigger  ── before update ──►  distance recalculated whenever either pin changes
+LWC polls AccountLocationGeocodeAction.getStatus every 2 s (up to ~40 s),
+refreshes the record and shows a toast with the result
 ```
 
 ---
 
 ## 3. Step by step
 
-### 3.1 Trigger: after insert
+### 3.1 The button
 
-**`AccountLocationTrigger` → `AccountLocationTriggerHandler.afterInsert`**
+**Quick action `ogg__Location__c.Suggest_Google_Location` → LWC `suggestGoogleLocation` → `AccountLocationGeocodeAction`**
 
-* Salesforce doesn't allow HTTP callouts inside a trigger. So the trigger only collects the new record Ids and queues **one** background job (`System.enqueueJob`) for the whole batch.
-* It does nothing if the feature is off: the custom setting has *Enabled* unchecked or no API key, or `AccountLocationTriggerHandler.bypass` is `true`.
-* If the transaction can't queue any more jobs (for example, records inserted from code that is already asynchronous), it writes an error to the debug log and skips. Those records can be filled in later with `scripts/apex/regeocode-existing.apex`.
+* The quick action is **headless**: no dialog opens. The component's `invoke()` runs as soon as the button is clicked.
+* It calls `AccountLocationGeocodeAction.enqueue(recordId)`. That checks the record is an oggLocation and the feature is on (custom setting *Enabled* and an API key). It then queues **one** background job for the record and returns the job Id. If the feature is off, the user gets an error toast saying so.
+* A background job is needed because Google is called over HTTP. Running the lookup in the background keeps the page responsive, and keeps the code identical for one record (button) and many (back-fill).
+* The component then calls `AccountLocationGeocodeAction.getStatus(jobId, recordId)` every 2 seconds, for up to about 40 seconds. When the job finishes, it refreshes the record on screen (`notifyRecordUpdateAvailable`) and shows a toast:
+
+| Toast | When |
+|---|---|
+| *Suggested location updated* – lat, lng and distance | job completed and suggested coordinates are filled |
+| *No suggestion* | job completed but Google found nothing (or the address is blank) |
+| *Google Maps lookup failed* | feature off, job failed, or an unexpected error |
+| *Still running* | the job hasn't finished after ~40 s; refresh later |
+
+* Clicking again while a lookup is still running does nothing.
 
 ### 3.2 Background job
 
 **`AccountLocationGeocodeQueueable`** (Queueable + `Database.AllowsCallouts`, runs `without sharing`)
 
-1. **Batching.** It takes the first *Batch Size* records (default and max **30**). Anything left over goes to a new job that it queues itself ("chaining"). Salesforce allows 100 callouts per transaction, and one address can need up to 3, so 30 × 3 = 90 stays under the limit. Before each record it also checks how many callouts are left, and pushes the record to the next job if there aren't enough.
+1. **Batching.** From the button the job gets one record. From the back-fill script it gets many: it takes the first *Batch Size* records (default and max **30**). Anything left over goes to a new job that it queues itself ("chaining"). Salesforce allows 100 callouts per transaction, and one address can need up to 3, so 30 × 3 = 90 stays under the limit. Before each record it also checks how many callouts are left, and pushes the record to the next job if there aren't enough.
 2. **Finding the address.** `ogg__Location__c` has **no lookup** to Account. Instead, `ogg__ObjectId__c` (Text 18) holds the Id of the source record, with `ogg__prefix__c` = `001` for Account. The job:
    * turns `ogg__ObjectId__c` into an Id and checks that it really is an Account Id
    * queries those Accounts in **one** SOQL statement for the whole batch
@@ -70,17 +78,9 @@ AccountLocationTrigger  ── before update ──►  distance recalculated wh
 4. **Distance** (§5).
 5. **Saving.** All callouts happen first, then **one** `Database.update(..., false)` saves every record in the batch. Salesforce doesn't allow callouts after a DML statement in the same transaction. Partial success is allowed: a record that fails to save is logged, and the rest are still saved. Only the three target fields are written. UPWARD's own fields are never touched.
 
-### 3.3 Trigger: before update
+### 3.3 Distance is calculated when the job runs
 
-**`AccountLocationTriggerHandler.beforeUpdate`**
-
-When `ogg__Latitude__c`, `ogg__Longitude__c`, `Suggested_Latitude__c` or `Suggested_Longtitude__c` changes, `Different_Distance__c` is recalculated in the same save. This covers:
-
-* the job's own update (the job also calculates the distance itself, with the same result)
-* UPWARD filling in or correcting its pin **after** the job ran
-* someone editing the coordinates by hand
-
-There are no callouts here. If the setting names a field that doesn't exist, the error is logged and the save goes ahead.
+`Different_Distance__c` is calculated by the job from UPWARD's pin and Google's pin at that moment. If UPWARD changes its pin later, click the button again to refresh the suggestion and the distance. There is no trigger that recalculates it automatically.
 
 ---
 
@@ -184,8 +184,9 @@ The Remote Site Settings `Google_Maps_Geocoding_API` and `Google_Places_API` all
 
 | File | Role |
 |---|---|
-| `triggers/AccountLocationTrigger.trigger` | Calls the handler on after insert and before update. Contains no logic. |
-| `classes/AccountLocationTriggerHandler.cls` | Queues the job; recalculates the distance; `bypass` flag |
+| `quickActions/ogg__Location__c.Suggest_Google_Location` | The **Suggest Location (Google)** button (Lightning Web Component action) |
+| `lwc/suggestGoogleLocation/` | Headless action: starts the job, polls its status, refreshes the record, shows toasts |
+| `classes/AccountLocationGeocodeAction.cls` | `@AuraEnabled enqueue` / `getStatus` used by the button |
 | `classes/AccountLocationGeocodeQueueable.cls` | Batching and chaining, Account lookup through `ogg__ObjectId__c`, callouts, one update per batch |
 | `classes/GoogleGeocodingService.cls` | HTTP calls to the Geocoding and Places APIs, search order, scoring |
 | `classes/ThaiAddressNormalizer.cls` | Thai address cleaning, search variants, postcode |
@@ -200,23 +201,25 @@ The Remote Site Settings `Google_Maps_Geocoding_API` and `Google_Places_API` all
 
 | Decision | Reason |
 |---|---|
-| Queueable instead of `@future` | It can carry a list of Ids, can chain itself for large volumes, and shows up in Apex Jobs. |
-| One job per trigger batch, chained | Uses one enqueue slot no matter how many records are inserted, and stays within the callout limits. |
+| Button instead of a trigger | Users decide which locations to check. No Google cost or background work on every insert, and no interference with UPWARD's own saves. |
+| Headless quick action (LWC) | One click, no dialog; it can report the result in a toast. |
+| Queueable instead of `@future` | It can carry a list of Ids, can chain itself for large volumes (back-fill), and its status can be polled from Apex Jobs. |
+| Batches of 30, chained | Stays within the callout limits when the back-fill script sends many records. |
 | Callouts first, then one DML | Salesforce forbids callouts after DML in the same transaction; it also saves DML statements. |
 | Account found through `ogg__ObjectId__c` | The ogg package doesn't provide a lookup field. |
 | Existing target fields are not deployed | They already exist in the org (one spelled `Longtitude`); deploying them could change their definitions. |
 | Clean the address before searching | Thai room, floor and building details are the main cause of wrong matches. |
 | Geocoding before Places | Geocoding costs much less per request. |
 | Postcode check | It's a cheap, reliable signal that Google chose the right area. |
-| Errors never block saving | UPWARD's own saves must never fail because of this feature. |
+| Errors never block saving | A failed lookup leaves the record as it is and is reported to the user. |
 | Settings in a custom setting | The feature can be switched off, and the key and options changed, without a deployment. The API key stays out of git. |
 
 ---
 
 ## 9. Limits and known gaps
 
-* **Only new records.** The trigger runs on insert. If `Account.Address__c` changes later and UPWARD *updates* the existing location instead of creating a new one, the suggestion isn't refreshed. Run `regeocode-existing.apex`, or extend the trigger. See HANDOFF.md.
+* **Manual.** Nothing runs on its own. New or changed addresses only get a suggestion when someone clicks the button, or when the back-fill script runs.
 * **Rule-based address cleaning.** Uncommon ways of writing room, floor or building may not be removed. Run `test-geocode-address.apex` to see what was sent, and add a pattern to `ThaiAddressNormalizer` with a test.
-* **One enqueue slot.** Records inserted from code that is already asynchronous and has used its slot are skipped with a log message.
+* **40-second wait in the browser.** If Google or the job queue is slow, the toast says *Still running*; the job still finishes and the values appear after a refresh.
 * **No result field.** The source (Geocoding or Places), the query used and the postcode match are only written to the debug log, not stored on the record.
-* **Cost.** Each new location costs 1–3 Google requests. Set quotas in Google Cloud and check current Google Maps Platform pricing for the expected volume.
+* **Cost.** Each click costs 1–3 Google requests. Set quotas in Google Cloud and check current Google Maps Platform pricing for the expected volume.

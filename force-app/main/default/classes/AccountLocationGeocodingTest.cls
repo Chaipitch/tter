@@ -1,12 +1,8 @@
 /**
- * End-to-end tests: AccountLocationTrigger -> AccountLocationTriggerHandler -> AccountLocationGeocodeQueueable.
+ * End-to-end tests: quick action Apex (AccountLocationGeocodeAction) -> AccountLocationGeocodeQueueable.
  *
  * Required fields on Account / ogg__Location__c are filled by TestRecordFactory. If a validation rule
  * needs a specific value, add it to the values map in newAccount() / newLocation().
- *
- * UPWARD may create its own ogg__Location__c when a test inserts an Account with an address; those
- * records are also geocoded (against the same mock), so assertions check our record rather than
- * exact callout counts where that matters.
  */
 @IsTest
 private class AccountLocationGeocodingTest {
@@ -73,17 +69,28 @@ private class AccountLocationGeocodingTest {
             rec.Suggested_Latitude__c, rec.Suggested_Longtitude__c);
     }
 
+    private static String expectFailure(Id recordId) {
+        try {
+            AccountLocationGeocodeAction.enqueue(recordId);
+        } catch (AuraHandledException e) {
+            return e.getMessage();
+        }
+        Assert.fail('Expected AuraHandledException');
+        return null;
+    }
+
     // ------------------------------------------------------------------ tests
 
     @IsTest
-    static void insertPopulatesSuggestedCoordinatesAndDistance() {
+    static void buttonPopulatesSuggestedCoordinatesAndDistance() {
         configure(true);
         GoogleMapsCalloutMock mock = mockPreciseResult();
         Account acc = newAccount(THAI_ADDRESS);
-
-        Test.startTest();
         ogg__Location__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
         insert loc;
+
+        Test.startTest();
+        Id jobId = AccountLocationGeocodeAction.enqueue(loc.Id);
         Test.stopTest();
 
         ogg__Location__c rec = reload(loc.Id);
@@ -91,13 +98,20 @@ private class AccountLocationGeocodingTest {
         Assert.areEqual(SUGGESTED_LNG, rec.Suggested_Longtitude__c);
         Assert.isNotNull(rec.Different_Distance__c, 'Distance should be calculated');
         Assert.areEqual(expectedDistance(rec), rec.Different_Distance__c);
+        Assert.areEqual(1, mock.requests.size(), 'Good first result -> single callout');
         Assert.areEqual(ThaiAddressNormalizer.prepare(THAI_ADDRESS).withoutUnit, mock.geocodeAddressParam(0),
             'Account address (without room / floor) must be sent to Google');
+
+        Map<String, Object> status = AccountLocationGeocodeAction.getStatus(jobId, loc.Id);
+        Assert.areEqual('Completed', status.get('status'));
+        Assert.areEqual(SUGGESTED_LAT, status.get('suggestedLatitude'));
+        Assert.areEqual(SUGGESTED_LNG, status.get('suggestedLongitude'));
+        Assert.areEqual(rec.Different_Distance__c, status.get('distance'));
     }
 
     @IsTest
-    static void disabledSettingMakesNoCallout() {
-        configure(false);
+    static void insertAloneDoesNothing() {
+        configure(true);
         GoogleMapsCalloutMock mock = mockPreciseResult();
         Account acc = newAccount(THAI_ADDRESS);
 
@@ -106,11 +120,33 @@ private class AccountLocationGeocodingTest {
         insert loc;
         Test.stopTest();
 
-        ogg__Location__c rec = reload(loc.Id);
-        Assert.isNull(rec.Suggested_Latitude__c);
-        Assert.isNull(rec.Suggested_Longtitude__c);
-        Assert.isNull(rec.Different_Distance__c);
+        Assert.isNull(reload(loc.Id).Suggested_Latitude__c, 'No trigger: only the button starts a lookup');
         Assert.areEqual(0, mock.requests.size());
+    }
+
+    @IsTest
+    static void disabledSettingIsReportedToTheUser() {
+        configure(false);
+        GoogleMapsCalloutMock mock = mockPreciseResult();
+        Account acc = newAccount(THAI_ADDRESS);
+        ogg__Location__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
+        insert loc;
+
+        Test.startTest();
+        String message = expectFailure(loc.Id);
+        Test.stopTest();
+
+        Assert.isTrue(message.contains('turned off'), message);
+        Assert.isNull(reload(loc.Id).Suggested_Latitude__c);
+        Assert.areEqual(0, mock.requests.size());
+    }
+
+    @IsTest
+    static void wrongRecordTypeIsRejected() {
+        configure(true);
+        Account acc = newAccount(THAI_ADDRESS);
+        Assert.isTrue(expectFailure(acc.Id).contains('oggLocation'));
+        Assert.isTrue(expectFailure(null).contains('oggLocation'));
     }
 
     @IsTest
@@ -118,14 +154,16 @@ private class AccountLocationGeocodingTest {
         configure(true);
         GoogleMapsCalloutMock mock = mockPreciseResult();
         Account acc = newAccount(null);
-
-        Test.startTest();
         ogg__Location__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
         insert loc;
+
+        Test.startTest();
+        Id jobId = AccountLocationGeocodeAction.enqueue(loc.Id);
         Test.stopTest();
 
         Assert.isNull(reload(loc.Id).Suggested_Latitude__c);
         Assert.areEqual(0, mock.requests.size());
+        Assert.isNull(AccountLocationGeocodeAction.getStatus(jobId, loc.Id).get('suggestedLatitude'));
     }
 
     @IsTest
@@ -135,67 +173,45 @@ private class AccountLocationGeocodingTest {
         mock.geocodeBody = GoogleMapsCalloutMock.geocodeError('OVER_QUERY_LIMIT', 'quota exceeded');
         Test.setMock(HttpCalloutMock.class, mock);
         Account acc = newAccount(THAI_ADDRESS);
-
-        Test.startTest();
         ogg__Location__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
         insert loc;
+
+        Test.startTest();
+        AccountLocationGeocodeAction.enqueue(loc.Id);
         Test.stopTest();
 
         Assert.isNull(reload(loc.Id).Suggested_Latitude__c);
-        Assert.isFalse(mock.requests.isEmpty(), 'Google was called');
+        Assert.areEqual(1, mock.requests.size());
     }
 
     @IsTest
-    static void missingOriginalCoordinatesThenLaterSetRecalculatesDistance() {
+    static void missingOriginalCoordinatesGiveNoDistance() {
         configure(true);
         mockPreciseResult();
         Account acc = newAccount(THAI_ADDRESS);
-
-        Test.startTest();
         ogg__Location__c loc = newLocation(acc.Id, null, null);
         insert loc;
+
+        Test.startTest();
+        AccountLocationGeocodeAction.enqueue(loc.Id);
         Test.stopTest();
 
         ogg__Location__c rec = reload(loc.Id);
         Assert.areEqual(SUGGESTED_LAT, rec.Suggested_Latitude__c);
         Assert.isNull(rec.Different_Distance__c, 'No distance without original coordinates');
-
-        // Simulate UPWARD filling the original coordinates afterwards
-        rec.put(GoogleMapsSettings.originalLatitudeField(), ORIGINAL_LAT);
-        rec.put(GoogleMapsSettings.originalLongitudeField(), ORIGINAL_LNG);
-        update rec;
-
-        ogg__Location__c after = reload(loc.Id);
-        Assert.isNotNull(after.Different_Distance__c);
-        Assert.areEqual(expectedDistance(after), after.Different_Distance__c);
-    }
-
-    @IsTest
-    static void bypassFlagSkipsHandler() {
-        configure(true);
-        GoogleMapsCalloutMock mock = mockPreciseResult();
-        Account acc = newAccount(THAI_ADDRESS);
-
-        Test.startTest();
-        AccountLocationTriggerHandler.bypass = true;
-        ogg__Location__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
-        insert loc;
-        AccountLocationTriggerHandler.bypass = false;
-        Test.stopTest();
-
-        Assert.isNull(reload(loc.Id).Suggested_Latitude__c);
     }
 
     @IsTest
     static void rawAddressUsedWhenLinkedToAnotherObject() {
         configure(true);
         mockPreciseResult();
-
-        Test.startTest();
         // Linked to a non-Account record (here the running User) -> ogg__RawAddress__c is geocoded
         ogg__Location__c loc = newLocation(UserInfo.getUserId(), ORIGINAL_LAT, ORIGINAL_LNG);
         loc.ogg__RawAddress__c = THAI_ADDRESS;
         insert loc;
+
+        Test.startTest();
+        AccountLocationGeocodeAction.enqueue(loc.Id);
         Test.stopTest();
 
         Assert.areEqual(SUGGESTED_LAT, reload(loc.Id).Suggested_Latitude__c);
@@ -209,7 +225,7 @@ private class AccountLocationGeocodingTest {
     }
 
     @IsTest
-    static void bulkInsertProcessesOneBatchPerJob() {
+    static void backfillJobProcessesOneBatchPerExecution() {
         configure(true);   // Batch_Size__c = 30
         GoogleMapsCalloutMock mock = mockPreciseResult();
         Account acc = newAccount(THAI_ADDRESS);
@@ -218,9 +234,12 @@ private class AccountLocationGeocodingTest {
         for (Integer i = 0; i < 60; i++) {
             locs.add(newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG));
         }
-
-        Test.startTest();
         insert locs;
+        List<Id> ids = new List<Id>(new Map<Id, ogg__Location__c>(locs).keySet());
+
+        // Same job the back-fill script (scripts/apex/regeocode-existing.apex) starts
+        Test.startTest();
+        System.enqueueJob(new AccountLocationGeocodeQueueable(ids));
         Test.stopTest();
 
         Integer populated = 0;
@@ -231,6 +250,6 @@ private class AccountLocationGeocodingTest {
         }
         // Remaining 30 are chained to a new job in real orgs; chaining is skipped in tests.
         Assert.areEqual(30, populated);
-        Assert.isTrue(mock.requests.size() >= 30);
+        Assert.areEqual(30, mock.requests.size());
     }
 }
