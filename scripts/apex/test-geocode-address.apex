@@ -1,4 +1,5 @@
-// Calls Google directly (no DML) to check the API key / settings and see what Google returns.
+// Calls the configured provider (Google or OpenStreetMap) directly, without DML, to check the settings
+// and see what comes back for one address.
 // Run:  sf apex run --file scripts/apex/test-geocode-address.apex --target-org tterakit-sb
 String address = '622 อาคารเอ็มโพเรียม ทาวเวอร์ ห้องเลขที่ 91,96 ชั้นที่ 9 ถนนสุขุมวิท แขวงคลองตัน เขตคลองเตย กรุงเทพมหานคร 10110'; // <-- change me
 

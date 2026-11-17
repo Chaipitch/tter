@@ -1,0 +1,51 @@
+<apex:page standardController="ogg__Location__c" recordSetVar="locations"
+           extensions="AccountLocationGeocodeListController"
+           lightningStylesheets="true" title="Suggest Locations (Google)">
+    <apex:slds />
+    <div class="slds-scope">
+        <div class="slds-p-around_medium">
+            <h1 class="slds-text-heading_medium slds-m-bottom_small">Suggest Locations (Google)</h1>
+            <apex:form >
+                <apex:pageMessages />
+
+                <apex:outputPanel rendered="{!NOT(started)}">
+                    <apex:outputPanel rendered="{!NOT(enabled)}">
+                        <p class="slds-m-bottom_small">
+                            Location lookup is turned off. Ask your administrator to enable
+                            <b>Google Maps Settings</b> (and add an API key, or set Provider to OpenStreetMap).
+                        </p>
+                    </apex:outputPanel>
+
+                    <apex:outputPanel rendered="{!enabled}">
+                        <p class="slds-m-bottom_small">
+                            <apex:outputText rendered="{!selectedCount > 0}"
+                                value="Look up the address of the {!selectedCount} selected record(s) and fill in the suggested latitude / longitude and distance." />
+                            <apex:outputText rendered="{!selectedCount == 0}"
+                                value="No records are selected. This looks up ALL oggLocation records that don't have a suggestion yet (Suggested Latitude is empty)." />
+                        </p>
+                        <p class="slds-m-bottom_small">
+                            It runs in the background in batches; large volumes can take a while.
+                            Records that already have a suggestion are only re-checked when you select them.
+                        </p>
+                        <apex:outputPanel rendered="{!openStreetMap}">
+                            <p class="slds-m-bottom_small slds-text-color_error">
+                                Provider is OpenStreetMap (temporary, testing only): at most
+                                {!openStreetMapLimit} records are processed per run.
+                            </p>
+                        </apex:outputPanel>
+                    </apex:outputPanel>
+
+                    <apex:commandButton action="{!start}" value="Start" disabled="{!NOT(enabled)}"
+                                        styleClass="slds-button slds-button_brand" />
+                    <apex:commandButton action="{!back}" value="Cancel" immediate="true"
+                                        styleClass="slds-button slds-button_neutral" />
+                </apex:outputPanel>
+
+                <apex:outputPanel rendered="{!started}">
+                    <apex:commandButton action="{!back}" value="Back to list" immediate="true"
+                                        styleClass="slds-button slds-button_neutral" />
+                </apex:outputPanel>
+            </apex:form>
+        </div>
+    </div>
+</apex:page>

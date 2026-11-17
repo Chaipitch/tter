@@ -108,6 +108,7 @@ sf project deploy validate \
   --tests GeoDistanceUtilTest \
   --tests ThaiAddressNormalizerTest \
   --tests OpenStreetMapGeocoderTest \
+  --tests AccountLocationGeocodeBatchTest \
   --wait 30
 ```
 
@@ -125,6 +126,7 @@ sf project deploy start \
   --tests GeoDistanceUtilTest \
   --tests ThaiAddressNormalizerTest \
   --tests OpenStreetMapGeocoderTest \
+  --tests AccountLocationGeocodeBatchTest \
   --wait 30
 ```
 
@@ -132,22 +134,37 @@ If the validation passed, you can quick-deploy it instead: `sf project deploy qu
 
 ### 3.4 Assign the permission set
 
-The permission set lets users run the button (access to the `AccountLocationGeocodeAction` Apex class) and read the three suggested/distance fields:
+The permission set lets users use both buttons and read the three suggested/distance fields. It grants access to the Apex classes `AccountLocationGeocodeAction` and `AccountLocationGeocodeListController`, and to the Visualforce page `AccountLocationGeocodeList`.
 
 ```bash
 sf org assign permset --name AccountLocation_Geocoding --target-org tterakit-sb
 ```
 
-To assign it to other users, add `--on-behalf-of user@example.com`, or assign it in Setup. Users without it get an error when they click the button.
+To assign it to other users, add `--on-behalf-of user@example.com`, or assign it in Setup. Users without it get an error when they click a button.
 
-### 3.5 Put the button on the record page
+### 3.5 Put the buttons on the page
 
-The quick action is deployed, but it only shows once it's on the page.
+Both buttons are deployed, but they only show once they're placed.
 
+**List view button "Suggest Locations (Google)"** (bulk):
+* Setup → Object Manager → **oggLocation** → **List View Button Layout** → edit the *List View* row → move **Suggest Locations (Google)** to *Selected Buttons* → Save.
+* It then appears at the top right of every oggLocation list view. Tick records and click it to process them, or click it with nothing ticked to process all records without a suggestion. A list view such as "Suggested Latitude equals (empty)" is handy for checking progress.
+
+**Record button "Suggest Location (Google)"** (single record):
 * **Page layout** (most orgs): Setup → Object Manager → **oggLocation** → Page Layouts → open the layout → **Mobile & Lightning Actions** → drag **Suggest Location (Google)** into *Salesforce Mobile and Lightning Experience Actions* → Save. If that section shows "predefined actions", click the wrench icon first to override them.
 * **Lightning record page with Dynamic Actions:** Lightning App Builder → select the Highlights Panel → **Add Action** → *Suggest Location (Google)* → Save.
 
-Also add `Suggested Latitude`, `Suggested Longtitude` and `Different Distance` to the layout if they aren't there yet.
+Also add `Suggested Latitude`, `Suggested Longtitude` and `Different Distance` to the layout and, if useful, to list views.
+
+### 3.6 Optional: nightly run
+
+To fill in new records automatically every night (02:00, org time zone), for all records without a suggestion:
+
+```bash
+sf apex run --file scripts/apex/schedule-nightly.apex --target-org tterakit-sb
+```
+
+To stop it: Setup → **Scheduled Jobs** → *Suggest locations nightly* → **Del**. Only schedule it with Google as the provider: OpenStreetMap is capped at 200 records per run and isn't meant for regular bulk use.
 
 ---
 
@@ -163,7 +180,7 @@ sf apex run --file scripts/apex/configure-openstreetmap.apex --target-org tterak
 
 This sets *Provider* = `OpenStreetMap` and *Enabled*, with no key. The button then uses the free OpenStreetMap Nominatim geocoder instead of Google. Keep in mind:
 * **Testing and demos only.** Thai coverage in OpenStreetMap is weaker than Google's, especially for house numbers. Expect more street- or district-level pins and larger distances. Don't judge the feature's accuracy from these results.
-* **Usage policy: at most 1 request per second, no bulk use.** The code spaces requests 1.1 s apart and processes at most 10 records per job. Don't run the back-fill script on many records with OpenStreetMap.
+* **Usage policy: at most 1 request per second, no bulk use.** The code spaces requests 1.1 s apart, processes 10 records per batch chunk, and caps a bulk run at **200 records**. Don't schedule nightly runs with OpenStreetMap.
 * **Places fallback isn't used.** With OpenStreetMap the search is: address without room/floor, then street level.
 * **Switching to Google later:** run Option A below. It sets *Provider* = `Google` and the key. Nothing else changes.
 
@@ -232,14 +249,16 @@ A line like `source=GEOCODING_API lat=13.74... lng=100.53...` in the output mean
 
 ## 7. Rollback
 
-* **Quick off switch:** uncheck `Enabled__c` in the custom setting. The button then shows *"Google Maps lookup is turned off"*.
-* **Hide the button:** remove it from the page layout / Lightning page.
-* **Full removal:** delete the quick action, LWC and classes with a destructive deployment. Keep the fields if their data is needed.
+* **Quick off switch:** uncheck `Enabled__c` in the custom setting. Both buttons then say the lookup is turned off, and a running batch stops making calls at its next chunk.
+* **Stop a running batch:** Setup → Apex Jobs → *Abort* on `AccountLocationGeocodeBatch`.
+* **Stop the nightly run:** Setup → Scheduled Jobs → *Suggest locations nightly* → Del.
+* **Hide the buttons:** remove them from the list view button layout and the page layout / Lightning page.
+* **Full removal:** delete the buttons, page, LWC and classes with a destructive deployment. Keep the fields if their data is needed.
 
 ---
 
 ## 8. Promoting to production later
 
-* Use `--test-level RunSpecifiedTests` with the five test classes (or `RunLocalTests`). Production requires 75% coverage overall.
-* Repeat steps 3.4, 3.5 and 4 in production, using a **production** API key with its own quota.
-* To fill in many records at once (instead of clicking the button on each), run `scripts/apex/regeocode-existing.apex`.
+* Use `--test-level RunSpecifiedTests` with the six test classes (or `RunLocalTests`). Production requires 75% coverage overall.
+* Repeat steps 3.4, 3.5, 3.6 and 4 in production, using a **production** API key with its own quota.
+* To fill in existing records after go-live, use the list view button with nothing ticked, or run `scripts/apex/regeocode-existing.apex`.
