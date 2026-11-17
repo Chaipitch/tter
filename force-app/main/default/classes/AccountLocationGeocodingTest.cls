@@ -48,10 +48,11 @@ private class AccountLocationGeocodingTest {
         return a;
     }
 
-    private static ogg__Location__c newLocation(Id accountId, Decimal lat, Decimal lng) {
+    /** sourceId: the record the location belongs to (ogg__ObjectId__c / ogg__prefix__c are required). */
+    private static ogg__Location__c newLocation(Id sourceId, Decimal lat, Decimal lng) {
         return (ogg__Location__c) TestRecordFactory.build(ogg__Location__c.SObjectType, new Map<String, Object>{
-            'ogg__ObjectId__c' => accountId == null ? null : String.valueOf(accountId),
-            'ogg__prefix__c' => accountId == null ? null : String.valueOf(accountId).left(3),
+            'ogg__ObjectId__c' => String.valueOf(sourceId),
+            'ogg__prefix__c' => String.valueOf(sourceId).left(3),
             GoogleMapsSettings.originalLatitudeField() => lat,
             GoogleMapsSettings.originalLongitudeField() => lng
         });
@@ -186,12 +187,13 @@ private class AccountLocationGeocodingTest {
     }
 
     @IsTest
-    static void rawAddressUsedWhenNotLinkedToAccount() {
+    static void rawAddressUsedWhenLinkedToAnotherObject() {
         configure(true);
         mockPreciseResult();
 
         Test.startTest();
-        ogg__Location__c loc = newLocation(null, ORIGINAL_LAT, ORIGINAL_LNG);
+        // Linked to a non-Account record (here the running User) -> ogg__RawAddress__c is geocoded
+        ogg__Location__c loc = newLocation(UserInfo.getUserId(), ORIGINAL_LAT, ORIGINAL_LNG);
         loc.ogg__RawAddress__c = THAI_ADDRESS;
         insert loc;
         Test.stopTest();

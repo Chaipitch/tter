@@ -118,7 +118,7 @@ public without sharing class AccountLocationGeocodeQueueable implements Queueabl
 
     /**
      * Account.Address__c of the Account in ogg__ObjectId__c. Falls back to the location's own
-     * ogg__RawAddress__c when the record is not linked to an Account (or the Account is gone).
+     * ogg__RawAddress__c when ogg__ObjectId__c is not an Account Id (or the Account is gone).
      */
     @TestVisible
     private static String addressFor(ogg__Location__c rec, Map<Id, Account> accounts) {
