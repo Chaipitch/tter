@@ -219,13 +219,13 @@ private class AccountLocationGeocodingTest {
 
     @IsTest
     static void objectIdOfAnotherObjectIsNotAnAccount() {
-        Assert.isNull(AccountLocationGeocodeQueueable.toAccountId(UserInfo.getUserId()));
-        Assert.isNull(AccountLocationGeocodeQueueable.toAccountId('not-an-id'));
-        Assert.isNull(AccountLocationGeocodeQueueable.toAccountId(null));
+        Assert.isNull(AccountLocationGeocodeProcessor.toAccountId(UserInfo.getUserId()));
+        Assert.isNull(AccountLocationGeocodeProcessor.toAccountId('not-an-id'));
+        Assert.isNull(AccountLocationGeocodeProcessor.toAccountId(null));
     }
 
     @IsTest
-    static void backfillJobProcessesOneBatchPerExecution() {
+    static void queueableProcessesOneBatchPerExecution() {
         configure(true);   // Batch_Size__c = 30
         GoogleMapsCalloutMock mock = mockPreciseResult();
         Account acc = newAccount(THAI_ADDRESS);
@@ -237,7 +237,7 @@ private class AccountLocationGeocodingTest {
         insert locs;
         List<Id> ids = new List<Id>(new Map<Id, ogg__Location__c>(locs).keySet());
 
-        // Same job the back-fill script (scripts/apex/regeocode-existing.apex) starts
+        // The queueable processes one batch per execution and chains the rest (bulk runs use AccountLocationGeocodeBatch)
         Test.startTest();
         System.enqueueJob(new AccountLocationGeocodeQueueable(ids));
         Test.stopTest();
