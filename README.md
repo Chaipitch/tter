@@ -10,6 +10,8 @@ This SFDX project adds Apex that checks the Account's single-field address again
 
 ## How it works
 
+Full explanation: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md). Current status and next steps: [HANDOFF.md](HANDOFF.md).
+
 ```
 ogg__Location__c inserted
    └─ AccountLocationTrigger (after insert)
@@ -53,8 +55,10 @@ force-app/main/default/
 └── permissionsets/AccountLocation_Geocoding  read access to the 3 suggested/distance fields
 manifest/package.xml                          deployment manifest
 scripts/apex/                                 anonymous Apex: configure settings, probe an address, back-fill old records
-docs/DEPLOYMENT_GUIDE.md                      ← start here
-docs/TESTING_GUIDE.md
+docs/HOW_IT_WORKS.md                         how the feature works, design decisions, limits
+docs/DEPLOYMENT_GUIDE.md                      deploy to a sandbox / production
+docs/TESTING_GUIDE.md                         unit + functional tests
+HANDOFF.md                                    ← start here: status, next steps, org facts
 ```
 
 ## Org facts this project relies on
