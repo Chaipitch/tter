@@ -18,7 +18,7 @@ public without sharing class AccountLocationGeocodeBatch
 
     public class BatchException extends Exception {}
 
-    @TestVisible private static final Integer OSM_MAX_RECORDS_PER_RUN = 200;
+    public static final Integer OSM_MAX_RECORDS_PER_RUN = 200;
 
     private final Set<Id> recordIds;   // null = all records without a suggestion
 
