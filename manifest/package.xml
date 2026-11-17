@@ -19,9 +19,9 @@
         <name>ApexTrigger</name>
     </types>
     <types>
-        <members>AccountLocation__c.Suggested_Latitude__c</members>
-        <members>AccountLocation__c.Suggested_Longitude__c</members>
-        <members>AccountLocation__c.Different_Distance__c</members>
+        <members>ogg__Location__c.Suggested_Latitude__c</members>
+        <members>ogg__Location__c.Suggested_Longitude__c</members>
+        <members>ogg__Location__c.Different_Distance__c</members>
         <members>Google_Maps_Settings__c.API_Key__c</members>
         <members>Google_Maps_Settings__c.Batch_Size__c</members>
         <members>Google_Maps_Settings__c.Country_Code__c</members>

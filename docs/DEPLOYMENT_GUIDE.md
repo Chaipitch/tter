@@ -31,36 +31,23 @@ git checkout claude/focused-babbage-51c5ir
 
 These checks take about 10 minutes and prevent most deployment failures. Do them in **Setup → Object Manager**.
 
-### 1.1 AccountLocation object API name
+### 1.1 Object and lookup API names (already set in the project)
 
-Open the AccountLocation object and note its **API Name**.
+The project already uses these API names:
 
-* If it is `AccountLocation__c`, nothing needs to change.
-* If it has a namespace (for example, `UPWARD__AccountLocation__c`) or a different name, rename the references in the project. Replace `ns__` with the real prefix:
+| Item | API name |
+|---|---|
+| AccountLocation object (ogg package) | `ogg__Location__c` |
+| Lookup to Account | `ogg__Account__c` (relationship `ogg__Account__r`) |
+| Address field on Account | `Address__c` (your org's own field, no namespace) |
 
-  ```bash
-  NS=ns__
-  grep -rl --include=* -e 'AccountLocation__c' -e 'Account__c' -e 'Account__r' force-app manifest scripts \
-    | xargs sed -i.bak -e "s/\bAccountLocation__c/${NS}AccountLocation__c/g" \
-                       -e "s/\bAccount__c\b/${NS}Account__c/g" \
-                       -e "s/\bAccount__r\b/${NS}Account__r/g"
-  ```
+Check them in **Object Manager**. If one differs, search and replace it in `force-app`, `manifest` and `scripts`. If it's the object name, also rename the folder `force-app/main/default/objects/ogg__Location__c`.
 
-  ```bash
-  mv force-app/main/default/objects/AccountLocation__c "force-app/main/default/objects/${NS}AccountLocation__c"
-  ```
+> The **new** fields (`Suggested_Latitude__c`, `Suggested_Longitude__c`, `Different_Distance__c`) have **no** `ogg__` prefix. Fields you add to a managed object belong to your org, so they're referenced as `ogg__Location__c.Suggested_Latitude__c`. The project already does this.
 
-  ```bash
-  find . -name '*.bak' -delete
-  ```
+### 1.2 Fields from the ogg package
 
-  > The **new** fields (`Suggested_Latitude__c` etc.) stay **without** a namespace. Fields you add to a managed object are always in your own namespace. Only the object name and the `Account__c` lookup get the prefix. In the field-meta XML and the permission set, the field reference becomes `ns__AccountLocation__c.Suggested_Latitude__c`. The `sed` above handles that.
-  >
-  > The command needs GNU sed. On macOS, install it with `brew install gnu-sed` and run `gsed` instead of `sed`.
-
-### 1.2 Lookup to Account
-
-On AccountLocation, confirm that the lookup to Account is `Account__c` (relationship name `Account__r`). If it has a different name, search and replace `Account__c` / `Account__r` the same way.
+Fields that come with the package carry the `ogg__` prefix. This matters for the original latitude/longitude fields in 1.4: they're probably named something like `ogg__Latitude__c`, not `Latitude__c`.
 
 ### 1.3 Account address field
 
@@ -68,22 +55,24 @@ On **Account**, confirm the address field is `Address__c`. Any text type works: 
 
 ### 1.4 Original latitude / longitude fields
 
-On AccountLocation, find the fields where UPWARD stores the original coordinates. Write down their **API names**, for example:
+On `ogg__Location__c`, find the fields where UPWARD stores the original coordinates. Write down their **API names**, for example:
 
 | Kind of field | Use these API names |
 |---|---|
-| Two number fields | `Latitude__c`, `Longitude__c` (the default) |
-| One Geolocation field, e.g. `Location__c` | `Location__Latitude__s`, `Location__Longitude__s` |
-| Managed package fields | `UPWARD__Latitude__c`, … |
+| Two number fields from the package | `ogg__Latitude__c`, `ogg__Longitude__c` |
+| One Geolocation field from the package, e.g. `ogg__Location__c` | `ogg__Location__Latitude__s`, `ogg__Location__Longitude__s` |
+| Two number fields your org added | `Latitude__c`, `Longitude__c` (the current default) |
 
-You'll enter these names in the custom setting in step 4. No code change is needed. The test class also reads them from the setting.
+Put these names in two places:
+1. **The custom setting** (step 4). The running code reads them from there.
+2. **The defaults in `force-app/main/default/classes/GoogleMapsSettings.cls`** (`DEFAULT_LATITUDE_FIELD`, `DEFAULT_LONGITUDE_FIELD`). Apex tests can't see custom setting data, so the tests use these defaults. If the defaults don't exist on `ogg__Location__c`, the tests fail with `field "Latitude__c" does not exist`.
 
 ### 1.5 Do the three target fields already exist?
 
 Check AccountLocation for `Suggested_Latitude__c`, `Suggested_Longitude__c` and `Different_Distance__c`.
 
 * **They don't exist:** deploy as-is. The project creates them as Number(3,7), Number(3,7) and Number(10,2).
-* **They exist:** remove the three `AccountLocation__c.*` `CustomField` members from `manifest/package.xml`. Also delete `force-app/main/default/objects/AccountLocation__c/fields/`. This keeps the deployment from changing your field definitions. They must be **Number** (or Currency/Percent) fields with at least 7 decimal places for latitude/longitude.
+* **They exist:** remove the three `ogg__Location__c.*` `CustomField` members from `manifest/package.xml`. Also delete `force-app/main/default/objects/ogg__Location__c/fields/`. This keeps the deployment from changing your field definitions. They must be **Number** (or Currency/Percent) fields with at least 7 decimal places for latitude/longitude.
 
 ### 1.6 Existing triggers on AccountLocation
 
@@ -223,8 +212,8 @@ A line like `source=GEOCODING_API lat=13.74... lng=100.53...` in the output mean
 
 | Error | Cause / fix |
 |---|---|
-| `Invalid type: AccountLocation__c` | The object name differs or has a namespace. See 1.1. |
-| `No such column 'Account__r'` / `Address__c` | The lookup or address field name differs. See 1.2 / 1.3. |
+| `Invalid type: ogg__Location__c` | The ogg package isn't installed in this sandbox, or the object name differs. See 1.1. |
+| `No such column 'ogg__Account__r'` / `Address__c` | The lookup or address field name differs. See 1.1 / 1.3. |
 | `Cannot change type of field` on Suggested_* | The fields already exist with another type. See 1.5. |
 | Test failure `REQUIRED_FIELD_MISSING` / `FIELD_CUSTOM_VALIDATION_EXCEPTION` | Add the required values in the test helpers. See 1.7. |
 | Test failure `Google_Maps_Settings__c: field "Latitude__c" does not exist` | The default original field names don't exist in this org. Change `DEFAULT_LATITUDE_FIELD` / `DEFAULT_LONGITUDE_FIELD` in `GoogleMapsSettings.cls` to your field names. The tests use the defaults because custom setting data isn't visible in tests. |

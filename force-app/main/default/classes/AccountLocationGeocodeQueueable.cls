@@ -1,5 +1,5 @@
 /**
- * Async job: for each AccountLocation__c, geocode Account__r.Address__c via Google Maps and store
+ * Async job: for each ogg__Location__c, geocode ogg__Account__r.Address__c via Google Maps and store
  * Suggested_Latitude__c / Suggested_Longitude__c / Different_Distance__c.
  *
  * Processes GoogleMapsSettings.batchSize() records per execution and chains itself for the rest.
@@ -48,21 +48,21 @@ public without sharing class AccountLocationGeocodeQueueable implements Queueabl
         String latField = GoogleMapsSettings.originalLatitudeField();
         String lngField = GoogleMapsSettings.originalLongitudeField();
 
-        String soql = 'SELECT Id, Account__r.Address__c, ' + latField + ', ' + lngField
-                    + ' FROM AccountLocation__c WHERE Id IN :ids';
-        List<AccountLocation__c> records = Database.queryWithBinds(
+        String soql = 'SELECT Id, ogg__Account__r.Address__c, ' + latField + ', ' + lngField
+                    + ' FROM ogg__Location__c WHERE Id IN :ids';
+        List<ogg__Location__c> records = Database.queryWithBinds(
             soql, new Map<String, Object>{ 'ids' => ids }, AccessLevel.SYSTEM_MODE);
 
         GoogleGeocodingService service = new GoogleGeocodingService();
-        List<AccountLocation__c> updates = new List<AccountLocation__c>();
+        List<ogg__Location__c> updates = new List<ogg__Location__c>();
 
-        for (AccountLocation__c rec : records) {
+        for (ogg__Location__c rec : records) {
             // Each address can need up to MAX_CALLOUTS_PER_ADDRESS callouts; defer the rest to the next job.
             if (Limits.getCallouts() + GoogleGeocodingService.MAX_CALLOUTS_PER_ADDRESS > Limits.getLimitCallouts()) {
                 deferred.add(rec.Id);
                 continue;
             }
-            String address = rec.Account__r == null ? null : rec.Account__r.Address__c;
+            String address = rec.ogg__Account__r == null ? null : rec.ogg__Account__r.Address__c;
             if (String.isBlank(address)) {
                 continue;
             }
@@ -78,7 +78,7 @@ public without sharing class AccountLocationGeocodeQueueable implements Queueabl
                 // Only the fields this job owns are written; the original coordinates are never touched.
                 // Distance is set here and also recalculated by the before-update trigger (same value),
                 // so it stays correct even if the trigger handler is bypassed.
-                updates.add(new AccountLocation__c(
+                updates.add(new ogg__Location__c(
                     Id = rec.Id,
                     Suggested_Latitude__c  = suggestedLat,
                     Suggested_Longitude__c = suggestedLng,

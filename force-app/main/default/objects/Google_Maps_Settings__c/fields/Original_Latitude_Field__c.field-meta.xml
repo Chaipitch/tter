@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Original_Latitude_Field__c</fullName>
-    <description>API name of the AccountLocation__c field that holds the original latitude. Defaults to Latitude__c.</description>
+    <description>API name of the ogg__Location__c field that holds the original latitude. Defaults to Latitude__c.</description>
     <externalId>false</externalId>
     <label>Original Latitude Field</label>
     <length>80</length>

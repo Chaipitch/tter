@@ -1,6 +1,6 @@
 // Creates / updates the Organization Default of Google_Maps_Settings__c.
 // 1. Replace the placeholder API key (do NOT commit a real key to git).
-// 2. Adjust the original latitude/longitude field API names to match AccountLocation__c in your org.
+// 2. Adjust the original latitude/longitude field API names to match ogg__Location__c in your org.
 // Run:  sf apex run --file scripts/apex/configure-settings.apex --target-org tterakit-sb
 Google_Maps_Settings__c s = Google_Maps_Settings__c.getOrgDefaults();
 if (s == null || s.Id == null) {
