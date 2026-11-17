@@ -1,5 +1,5 @@
 /**
- * HttpCalloutMock for Google Geocoding API and Places API (New) Text Search.
+ * HttpCalloutMock for Google Geocoding API, Places API (New) Text Search and OpenStreetMap Nominatim.
  * Routes by endpoint host, can return a sequence of Geocoding responses, and records every request.
  */
 @IsTest
@@ -10,13 +10,18 @@ public class GoogleMapsCalloutMock implements HttpCalloutMock {
     public List<String> geocodeBodies = new List<String>();      // consumed in order, one per Geocoding call
     public Integer placesStatusCode  = 200;
     public String  placesBody;
+    public Integer osmStatusCode     = 200;
+    public List<String> osmBodies    = new List<String>();       // consumed in order; '[]' when empty
     public List<HttpRequest> requests = new List<HttpRequest>();
 
     public HttpResponse respond(HttpRequest req) {
         requests.add(req);
         HttpResponse res = new HttpResponse();
         res.setHeader('Content-Type', 'application/json');
-        if (req.getEndpoint().startsWith('https://places.googleapis.com')) {
+        if (req.getEndpoint().startsWith('https://nominatim.openstreetmap.org')) {
+            res.setStatusCode(osmStatusCode);
+            res.setBody(osmBodies.isEmpty() ? '[]' : osmBodies.remove(0));
+        } else if (req.getEndpoint().startsWith('https://places.googleapis.com')) {
             res.setStatusCode(placesStatusCode);
             res.setBody(placesBody == null ? '{}' : placesBody);
         } else {
@@ -81,6 +86,23 @@ public class GoogleMapsCalloutMock implements HttpCalloutMock {
         return JSON.serialize(new Map<String, Object>{
             'status'  => 'OK',
             'results' => new List<Object>{ result }
+        });
+    }
+
+    /** One Nominatim jsonv2 result. lat/lon are strings, like the real API. */
+    public static String osmOk(Decimal lat, Decimal lng, Integer placeRank, String postcode) {
+        Map<String, Object> address = new Map<String, Object>{ 'country_code' => 'th' };
+        if (postcode != null) {
+            address.put('postcode', postcode);
+        }
+        return JSON.serialize(new List<Object>{
+            new Map<String, Object>{
+                'lat' => String.valueOf(lat),
+                'lon' => String.valueOf(lng),
+                'place_rank' => placeRank,
+                'display_name' => 'Mock OSM place',
+                'address' => address
+            }
         });
     }
 

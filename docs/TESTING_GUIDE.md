@@ -12,6 +12,7 @@ sf apex run test \
   --class-names GoogleGeocodingServiceTest \
   --class-names GeoDistanceUtilTest \
   --class-names ThaiAddressNormalizerTest \
+  --class-names OpenStreetMapGeocoderTest \
   --code-coverage --result-format human --wait 15 \
   --target-org tterakit-sb
 ```
@@ -23,6 +24,7 @@ sf apex run test \
 | `AccountLocationGeocodingTest` | Button Apex (`enqueue` → job → `getStatus`) fills suggested lat/lng + distance; an insert alone does nothing; setting disabled and wrong record type report an error; blank address; Google error leaves the record unchanged; no original coordinates → no distance; `ogg__RawAddress__c` fallback; back-fill job with 60 records (30 per execution). Uses the Thai Emporium address. |
 | `GoogleGeocodingServiceTest` | Thai search order (address without room/floor → street level → Places); postcode check; best-score choice; country/region/language params; Places failure keeps the Geocoding result; REQUEST_DENIED and HTTP 500 errors; blank address; settings defaults/validation |
 | `ThaiAddressNormalizerTest` | Room/floor removal (`ห้องเลขที่ 91,96`, `ชั้นที่ 9`, `Room`, `12th Floor`); building removal; Thai digits; abbreviations (`ถ.`, `ซ.`, `ต.`, `อ.`, `จ.`, `ม.`, `กทม.`, `กรุงเทพฯ`); postcode extraction |
+| `OpenStreetMapGeocoderTest` | Provider switch (`OpenStreetMap`/`OSM`/blank/`Google`); enabled without an API key; batch capped at 10; Nominatim request (`format=jsonv2`, `countrycodes`, `accept-language`, User-Agent, no key); area result → street-level query; best result when only area results; empty result; HTTP 429; button end to end with OpenStreetMap; Google and Places never called |
 | `GeoDistanceUtilTest` | Distance math (known distances, same point = 0, null/out-of-range input) |
 
 ---
@@ -38,6 +40,14 @@ sf apex run test \
   ```bash
   sf apex tail log --color --target-org tterakit-sb
   ```
+
+### Testing without a Google API key (OpenStreetMap)
+
+Until the Google key is available, run `scripts/apex/configure-openstreetmap.apex` (DEPLOYMENT_GUIDE §4). All test cases work the same way, with these differences:
+* The pin comes from OpenStreetMap. Thai house numbers are often missing there, so a street- or district-level pin and a larger `Different Distance` are normal. **Don't judge accuracy (TC-03) with OpenStreetMap**; repeat TC-01 – TC-03 with Google later.
+* TC-07 (invalid API key) doesn't apply.
+* Click at a normal pace. Nominatim allows at most 1 request per second from the org.
+* The probe script prints `provider = OpenStreetMap` and `source=OPENSTREETMAP`.
 
 ### How Thai addresses are searched
 
@@ -116,6 +126,7 @@ The output first shows the query variants built from the Thai address (`withoutU
 | Toast *Still running* | The job queue is busy. The job still finishes; refresh the page in a minute, or check **Setup → Apex Jobs**. |
 | Toast *No suggestion* | Debug log of the user who clicked. `REQUEST_DENIED` = key or API not enabled / restricted. `OVER_QUERY_LIMIT` = quota or billing. `No Google Maps result` = address not found. |
 | `Unauthorized endpoint` in log | Remote Site Setting missing or inactive. |
+| `OpenStreetMap Nominatim HTTP 403` / `429` | Nominatim refused or rate-limited the org. Wait a few minutes and click less often. If 403 persists, Nominatim may be blocking Salesforce's shared IPs. Use Google instead. |
 | `field "..." does not exist on ogg__Location__c` | *Original Latitude/Longitude Field* in the setting is wrong. |
 | `Different_Distance__c` blank but Suggested filled | The original coordinates were empty when the job ran. Click the button again once UPWARD has set them. |
 | Wrong country results | Set *Country Code* = `TH` and *Region* = `th`. |
