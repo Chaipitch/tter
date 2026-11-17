@@ -76,7 +76,7 @@ Create each Account the way users normally do, so that UPWARD creates the Accoun
 * With SOQL:
 
   ```bash
-  sf data query --target-org tterakit-sb --query "SELECT Id, Name, ogg__Account__r.Address__c, Suggested_Latitude__c, Suggested_Longitude__c, Different_Distance__c FROM ogg__Location__c ORDER BY CreatedDate DESC LIMIT 20"
+  sf data query --target-org tterakit-sb --query "SELECT Id, Name, Suggested_Latitude__c, Suggested_Longitude__c, Different_Distance__c FROM ogg__Location__c ORDER BY CreatedDate DESC LIMIT 20"
   ```
 
   Add your original latitude/longitude field names to the `SELECT` to compare them.

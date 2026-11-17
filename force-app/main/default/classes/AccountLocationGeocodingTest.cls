@@ -42,7 +42,8 @@ private class AccountLocationGeocodingTest {
     }
 
     private static ogg__Location__c newLocation(Id accountId, Decimal lat, Decimal lng) {
-        ogg__Location__c loc = new ogg__Location__c(ogg__Account__c = accountId);
+        ogg__Location__c loc = new ogg__Location__c();
+        loc.put(GoogleMapsSettings.accountLookupField(), accountId);
         loc.put(GoogleMapsSettings.originalLatitudeField(), lat);
         loc.put(GoogleMapsSettings.originalLongitudeField(), lng);
         return loc;
@@ -52,7 +53,8 @@ private class AccountLocationGeocodingTest {
         String soql = 'SELECT Id, Suggested_Latitude__c, Suggested_Longitude__c, Different_Distance__c, '
             + GoogleMapsSettings.originalLatitudeField() + ', ' + GoogleMapsSettings.originalLongitudeField()
             + ' FROM ogg__Location__c WHERE Id = :recordId';
-        return Database.queryWithBinds(soql, new Map<String, Object>{ 'recordId' => recordId }, AccessLevel.SYSTEM_MODE)[0];
+        return (ogg__Location__c) Database.queryWithBinds(
+            soql, new Map<String, Object>{ 'recordId' => recordId }, AccessLevel.SYSTEM_MODE)[0];
     }
 
     private static Decimal expectedDistance(ogg__Location__c rec) {

@@ -199,5 +199,19 @@ private class GoogleGeocodingServiceTest {
         } catch (GoogleMapsSettings.ConfigurationException e) {
             Assert.isTrue(e.getMessage().contains('Does_Not_Exist__c'));
         }
+
+        // Account lookup: auto-detected when blank, validated when configured
+        GoogleMapsSettings.cached = new Google_Maps_Settings__c();
+        String lookup = GoogleMapsSettings.accountLookupField();
+        Assert.isNotNull(lookup);
+        Assert.isNotNull(GoogleMapsSettings.accountRelationshipName());
+
+        GoogleMapsSettings.cached = new Google_Maps_Settings__c(Account_Lookup_Field__c = 'Does_Not_Exist__c');
+        try {
+            GoogleMapsSettings.accountLookupField();
+            Assert.fail('Expected ConfigurationException');
+        } catch (GoogleMapsSettings.ConfigurationException e) {
+            Assert.isTrue(e.getMessage().contains('is not a lookup to Account'));
+        }
     }
 }

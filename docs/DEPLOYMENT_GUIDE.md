@@ -38,7 +38,7 @@ The project already uses these API names:
 | Item | API name |
 |---|---|
 | AccountLocation object (ogg package) | `ogg__Location__c` |
-| Lookup to Account | `ogg__Account__c` (relationship `ogg__Account__r`) |
+| Lookup to Account | Found automatically: the field on `ogg__Location__c` that references Account. If there's more than one, set its API name in the custom setting's *Account Lookup Field*. |
 | Address field on Account | `Address__c` (your org's own field, no namespace) |
 
 Check them in **Object Manager**. If one differs, search and replace it in `force-app`, `manifest` and `scripts`. If it's the object name, also rename the folder `force-app/main/default/objects/ogg__Location__c`.
@@ -183,6 +183,7 @@ Go to **Setup → Custom Settings → Google Maps Settings → Manage → New** 
 |---|---|
 | Enabled | ✔ |
 | API Key | your key |
+| Account Lookup Field | leave blank (automatic). Only set it if `ogg__Location__c` has more than one lookup to Account. |
 | Use Places Fallback | ✔ if Places API (New) is enabled |
 | Country Code | `TH` (restricts Geocoding results to Thailand) |
 | Region | `th` (biases results to Thailand) |
@@ -213,7 +214,8 @@ A line like `source=GEOCODING_API lat=13.74... lng=100.53...` in the output mean
 | Error | Cause / fix |
 |---|---|
 | `Invalid type: ogg__Location__c` | The ogg package isn't installed in this sandbox, or the object name differs. See 1.1. |
-| `No such column 'ogg__Account__r'` / `Address__c` | The lookup or address field name differs. See 1.1 / 1.3. |
+| `No such column 'Address__c'` | The address field on Account has a different name. See 1.3. |
+| Log: `No lookup to Account found on ogg__Location__c` / `is not a lookup to Account` | Check *Account Lookup Field* in the custom setting. Leave it blank for automatic detection, or enter the API name of the lookup field. |
 | `Cannot change type of field` on Suggested_* | The fields already exist with another type. See 1.5. |
 | Test failure `REQUIRED_FIELD_MISSING` / `FIELD_CUSTOM_VALIDATION_EXCEPTION` | Add the required values in the test helpers. See 1.7. |
 | Test failure `Google_Maps_Settings__c: field "Latitude__c" does not exist` | The default original field names don't exist in this org. Change `DEFAULT_LATITUDE_FIELD` / `DEFAULT_LONGITUDE_FIELD` in `GoogleMapsSettings.cls` to your field names. The tests use the defaults because custom setting data isn't visible in tests. |
