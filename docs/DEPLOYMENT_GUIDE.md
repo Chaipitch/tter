@@ -100,7 +100,7 @@ If Account or AccountLocation has required fields or validation rules, the tests
 1. In https://console.cloud.google.com, select or create a project and **enable billing**.
 2. Go to **APIs & Services → Library** and enable:
    * **Geocoding API** (required)
-   * **Places API (New)** (optional; used for the fallback search when the address isn't an exact match)
+   * **Places API (New)** (recommended for Thai addresses; it finds building names like อาคารเอ็มโพเรียม ทาวเวอร์ when the Geocoding API can't)
 3. Go to **APIs & Services → Credentials → Create credentials → API key**.
 4. **Restrict the key:**
    * *API restrictions*: allow only Geocoding API and Places API (New).
@@ -116,7 +116,7 @@ If Account or AccountLocation has required fields or validation rules, the tests
 ### 3.1 Authenticate to the sandbox
 
 ```bash
-sf org login web --alias uat-sandbox --instance-url https://test.salesforce.com
+sf org login web --alias tterakit-sb --instance-url https://test.salesforce.com
 ```
 
 For a sandbox with My Domain, you can use `--instance-url https://<mydomain>--<sandbox>.sandbox.my.salesforce.com`.
@@ -126,11 +126,12 @@ For a sandbox with My Domain, you can use `--instance-url https://<mydomain>--<s
 ```bash
 sf project deploy validate \
   --manifest manifest/package.xml \
-  --target-org uat-sandbox \
+  --target-org tterakit-sb \
   --test-level RunSpecifiedTests \
   --tests AccountLocationGeocodingTest \
   --tests GoogleGeocodingServiceTest \
   --tests GeoDistanceUtilTest \
+  --tests ThaiAddressNormalizerTest \
   --wait 30
 ```
 
@@ -141,22 +142,23 @@ Fix any errors that come up. Section 6 lists the common ones.
 ```bash
 sf project deploy start \
   --manifest manifest/package.xml \
-  --target-org uat-sandbox \
+  --target-org tterakit-sb \
   --test-level RunSpecifiedTests \
   --tests AccountLocationGeocodingTest \
   --tests GoogleGeocodingServiceTest \
   --tests GeoDistanceUtilTest \
+  --tests ThaiAddressNormalizerTest \
   --wait 30
 ```
 
-If the validation passed, you can quick-deploy it instead: `sf project deploy quick --job-id <validation job id> --target-org uat-sandbox`.
+If the validation passed, you can quick-deploy it instead: `sf project deploy quick --job-id <validation job id> --target-org tterakit-sb`.
 
 ### 3.4 Assign the permission set
 
 This gives users read access to the three new fields:
 
 ```bash
-sf org assign permset --name AccountLocation_Geocoding --target-org uat-sandbox
+sf org assign permset --name AccountLocation_Geocoding --target-org tterakit-sb
 ```
 
 To assign it to other users, add `--on-behalf-of user@example.com`, or assign it in Setup.
@@ -175,7 +177,7 @@ The feature is **off** until the Organization Default of `Google_Maps_Settings__
 2. Run:
 
    ```bash
-   sf apex run --file scripts/apex/configure-settings.apex --target-org uat-sandbox
+   sf apex run --file scripts/apex/configure-settings.apex --target-org tterakit-sb
    ```
 
 3. Undo the edit:
@@ -193,11 +195,12 @@ Go to **Setup → Custom Settings → Google Maps Settings → Manage → New** 
 | Enabled | ✔ |
 | API Key | your key |
 | Use Places Fallback | ✔ if Places API (New) is enabled |
-| Region | `th` (biases results to Thailand; leave blank for none) |
-| Language | `en` or `th` |
+| Country Code | `TH` (restricts Geocoding results to Thailand) |
+| Region | `th` (biases results to Thailand) |
+| Language | `th` (results come back in Thai, matching the Thai input) |
 | Original Latitude Field | e.g. `Latitude__c` |
 | Original Longitude Field | e.g. `Longitude__c` |
-| Batch Size | `40` (max 45) |
+| Batch Size | `30` (max 30, because one address can take up to 3 callouts) |
 | Timeout (ms) | `10000` |
 
 The Remote Site Settings `Google_Maps_Geocoding_API` and `Google_Places_API` are deployed by the project. Check that they're active under **Setup → Remote Site Settings**.
@@ -209,7 +212,7 @@ The Remote Site Settings `Google_Maps_Geocoding_API` and `Google_Places_API` are
 Check the key and settings with one direct call (this makes no DML):
 
 ```bash
-sf apex run --file scripts/apex/test-geocode-address.apex --target-org uat-sandbox
+sf apex run --file scripts/apex/test-geocode-address.apex --target-org tterakit-sb
 ```
 
 A line like `source=GEOCODING_API lat=13.74... lng=100.53...` in the output means the setup is good. Then follow [TESTING_GUIDE.md](TESTING_GUIDE.md).
@@ -235,13 +238,13 @@ A line like `source=GEOCODING_API lat=13.74... lng=100.53...` in the output mean
 * **Full removal:** use a destructive deployment for the trigger and classes. Keep the fields if their data is needed.
 
   ```bash
-  sf project delete source --metadata ApexTrigger:AccountLocationTrigger --target-org uat-sandbox
+  sf project delete source --metadata ApexTrigger:AccountLocationTrigger --target-org tterakit-sb
   ```
 
 ---
 
 ## 8. Promoting to production later
 
-* Use `--test-level RunSpecifiedTests` with the three test classes (or `RunLocalTests`). Production requires 75% coverage overall and at least 1% for each trigger.
+* Use `--test-level RunSpecifiedTests` with the four test classes (or `RunLocalTests`). Production requires 75% coverage overall and at least 1% for each trigger.
 * Repeat steps 3.4 and 4 in production, using a **production** API key with its own quota.
 * To back-fill records created before go-live, run `scripts/apex/regeocode-existing.apex`. The trigger only handles new records.

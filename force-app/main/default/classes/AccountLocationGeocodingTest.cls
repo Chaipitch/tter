@@ -8,10 +8,13 @@
 private class AccountLocationGeocodingTest {
 
     // Original coordinates (what UPWARD stored) and the mocked Google Maps "suggested" coordinates.
-    private static final Decimal ORIGINAL_LAT  = 13.7500000;
-    private static final Decimal ORIGINAL_LNG  = 100.4913000;
-    private static final Decimal SUGGESTED_LAT = 13.7462000;
-    private static final Decimal SUGGESTED_LNG = 100.5347000;
+    private static final Decimal ORIGINAL_LAT  = 13.7280000;
+    private static final Decimal ORIGINAL_LNG  = 100.5650000;
+    private static final Decimal SUGGESTED_LAT = 13.7307000;
+    private static final Decimal SUGGESTED_LNG = 100.5694000;
+
+    private static final String THAI_ADDRESS =
+        '622 อาคารเอ็มโพเรียม ทาวเวอร์ ห้องเลขที่ 91,96 ชั้นที่ 9 ถนนสุขุมวิท แขวงคลองตัน เขตคลองเตย กรุงเทพมหานคร 10110';
 
     // ------------------------------------------------------------------ helpers
 
@@ -20,14 +23,14 @@ private class AccountLocationGeocodingTest {
             SetupOwnerId = UserInfo.getOrganizationId(),
             Enabled__c = enabled,
             API_Key__c = 'TEST_KEY',
-            Batch_Size__c = 40,
+            Batch_Size__c = 30,
             Use_Places_Fallback__c = false);
         GoogleMapsSettings.cached = null;
     }
 
     private static GoogleMapsCalloutMock mockPreciseResult() {
         GoogleMapsCalloutMock mock = new GoogleMapsCalloutMock();
-        mock.geocodeBody = GoogleMapsCalloutMock.geocodeOk(SUGGESTED_LAT, SUGGESTED_LNG, 'ROOFTOP', false);
+        mock.geocodeBody = GoogleMapsCalloutMock.geocodeOk(SUGGESTED_LAT, SUGGESTED_LNG, 'ROOFTOP', false, '10110');
         Test.setMock(HttpCalloutMock.class, mock);
         return mock;
     }
@@ -65,7 +68,7 @@ private class AccountLocationGeocodingTest {
     static void insertPopulatesSuggestedCoordinatesAndDistance() {
         configure(true);
         GoogleMapsCalloutMock mock = mockPreciseResult();
-        Account acc = newAccount('991 Rama I Rd, Pathum Wan, Bangkok 10330');
+        Account acc = newAccount(THAI_ADDRESS);
 
         Test.startTest();
         AccountLocation__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
@@ -77,14 +80,16 @@ private class AccountLocationGeocodingTest {
         Assert.areEqual(SUGGESTED_LNG, rec.Suggested_Longitude__c);
         Assert.isNotNull(rec.Different_Distance__c, 'Distance should be calculated');
         Assert.areEqual(expectedDistance(rec), rec.Different_Distance__c);
-        Assert.isTrue(mock.requests[0].getEndpoint().contains('Rama+I+Rd'), 'Account address must be sent to Google');
+        Assert.areEqual(ThaiAddressNormalizer.prepare(THAI_ADDRESS).withoutUnit, mock.geocodeAddressParam(0),
+            'Account address (without room / floor) must be sent to Google');
+        Assert.areEqual(1, mock.requests.size(), 'Good first result -> single callout');
     }
 
     @IsTest
     static void disabledSettingMakesNoCallout() {
         configure(false);
         GoogleMapsCalloutMock mock = mockPreciseResult();
-        Account acc = newAccount('991 Rama I Rd, Bangkok');
+        Account acc = newAccount(THAI_ADDRESS);
 
         Test.startTest();
         AccountLocation__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
@@ -119,7 +124,7 @@ private class AccountLocationGeocodingTest {
         GoogleMapsCalloutMock mock = new GoogleMapsCalloutMock();
         mock.geocodeBody = GoogleMapsCalloutMock.geocodeError('OVER_QUERY_LIMIT', 'quota exceeded');
         Test.setMock(HttpCalloutMock.class, mock);
-        Account acc = newAccount('991 Rama I Rd, Bangkok');
+        Account acc = newAccount(THAI_ADDRESS);
 
         Test.startTest();
         AccountLocation__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
@@ -134,7 +139,7 @@ private class AccountLocationGeocodingTest {
     static void missingOriginalCoordinatesThenLaterSetRecalculatesDistance() {
         configure(true);
         mockPreciseResult();
-        Account acc = newAccount('991 Rama I Rd, Bangkok');
+        Account acc = newAccount(THAI_ADDRESS);
 
         Test.startTest();
         AccountLocation__c loc = newLocation(acc.Id, null, null);
@@ -159,7 +164,7 @@ private class AccountLocationGeocodingTest {
     static void bypassFlagSkipsHandler() {
         configure(true);
         GoogleMapsCalloutMock mock = mockPreciseResult();
-        Account acc = newAccount('991 Rama I Rd, Bangkok');
+        Account acc = newAccount(THAI_ADDRESS);
 
         Test.startTest();
         AccountLocationTriggerHandler.bypass = true;
@@ -174,9 +179,9 @@ private class AccountLocationGeocodingTest {
 
     @IsTest
     static void bulkInsertProcessesOneBatchPerJob() {
-        configure(true);   // Batch_Size__c = 40
+        configure(true);   // Batch_Size__c = 30
         GoogleMapsCalloutMock mock = mockPreciseResult();
-        Account acc = newAccount('991 Rama I Rd, Bangkok');
+        Account acc = newAccount(THAI_ADDRESS);
 
         List<AccountLocation__c> locs = new List<AccountLocation__c>();
         for (Integer i = 0; i < 60; i++) {
@@ -193,8 +198,8 @@ private class AccountLocationGeocodingTest {
                 populated++;
             }
         }
-        // Remaining 20 are chained to a new job in real orgs; chaining is skipped in tests.
-        Assert.areEqual(40, populated);
-        Assert.areEqual(40, mock.requests.size());
+        // Remaining 30 are chained to a new job in real orgs; chaining is skipped in tests.
+        Assert.areEqual(30, populated);
+        Assert.areEqual(30, mock.requests.size());
     }
 }

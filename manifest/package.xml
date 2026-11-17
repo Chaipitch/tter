@@ -10,6 +10,8 @@
         <members>GoogleGeocodingServiceTest</members>
         <members>GoogleMapsCalloutMock</members>
         <members>GoogleMapsSettings</members>
+        <members>ThaiAddressNormalizer</members>
+        <members>ThaiAddressNormalizerTest</members>
         <name>ApexClass</name>
     </types>
     <types>
@@ -22,6 +24,7 @@
         <members>AccountLocation__c.Different_Distance__c</members>
         <members>Google_Maps_Settings__c.API_Key__c</members>
         <members>Google_Maps_Settings__c.Batch_Size__c</members>
+        <members>Google_Maps_Settings__c.Country_Code__c</members>
         <members>Google_Maps_Settings__c.Enabled__c</members>
         <members>Google_Maps_Settings__c.Language__c</members>
         <members>Google_Maps_Settings__c.Original_Latitude_Field__c</members>

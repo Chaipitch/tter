@@ -8,8 +8,8 @@ public without sharing class GoogleMapsSettings {
 
     @TestVisible private static final String DEFAULT_LATITUDE_FIELD  = 'Latitude__c';
     @TestVisible private static final String DEFAULT_LONGITUDE_FIELD = 'Longitude__c';
-    @TestVisible private static final Integer DEFAULT_BATCH_SIZE = 40;
-    @TestVisible private static final Integer MAX_BATCH_SIZE     = 45;     // 2 callouts per record max -> 90 of 100 callouts
+    @TestVisible private static final Integer DEFAULT_BATCH_SIZE = 30;
+    @TestVisible private static final Integer MAX_BATCH_SIZE     = 30;     // up to 3 callouts per record -> 90 of 100 callouts
     @TestVisible private static final Integer DEFAULT_TIMEOUT_MS = 10000;
     @TestVisible private static final Integer MAX_TIMEOUT_MS     = 120000;
 
@@ -33,6 +33,7 @@ public without sharing class GoogleMapsSettings {
 
     public static String apiKey()   { return get().API_Key__c; }
     public static String region()   { return trimToNull(get().Region__c); }
+    public static String countryCode() { return trimToNull(get().Country_Code__c); }
     public static String language() { return trimToNull(get().Language__c); }
     public static Boolean usePlacesFallback() { return get().Use_Places_Fallback__c == true; }
 

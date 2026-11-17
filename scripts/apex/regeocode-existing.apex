@@ -2,7 +2,7 @@
 // AccountLocation__c records (the trigger only handles new records).
 // Records whose Account has a blank Address__c are skipped by the job.
 // The job processes Batch_Size__c records and chains itself for the rest.
-// Run:  sf apex run --file scripts/apex/regeocode-existing.apex --target-org <alias>
+// Run:  sf apex run --file scripts/apex/regeocode-existing.apex --target-org tterakit-sb
 List<Id> ids = new List<Id>(new Map<Id, AccountLocation__c>([
     SELECT Id FROM AccountLocation__c
     WHERE Suggested_Latitude__c = null

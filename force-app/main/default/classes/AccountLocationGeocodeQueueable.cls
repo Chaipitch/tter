@@ -57,8 +57,8 @@ public without sharing class AccountLocationGeocodeQueueable implements Queueabl
         List<AccountLocation__c> updates = new List<AccountLocation__c>();
 
         for (AccountLocation__c rec : records) {
-            // Keep 2 callouts in reserve (Geocoding + optional Places fallback) for each record.
-            if (Limits.getCallouts() + 2 > Limits.getLimitCallouts()) {
+            // Each address can need up to MAX_CALLOUTS_PER_ADDRESS callouts; defer the rest to the next job.
+            if (Limits.getCallouts() + GoogleGeocodingService.MAX_CALLOUTS_PER_ADDRESS > Limits.getLimitCallouts()) {
                 deferred.add(rec.Id);
                 continue;
             }

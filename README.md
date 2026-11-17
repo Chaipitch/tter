@@ -15,10 +15,12 @@ AccountLocation__c inserted
    └─ AccountLocationTrigger (after insert)
         └─ AccountLocationTriggerHandler.afterInsert  ── enqueues ──►  AccountLocationGeocodeQueueable  (Database.AllowsCallouts)
                                                                          ├─ SOQL: Account__r.Address__c + original lat/lng
-                                                                         ├─ GoogleGeocodingService.findCoordinates(address)
-                                                                         │     1. Geocoding API
-                                                                         │     2. (optional) Places API (New) Text Search when the result is
-                                                                         │        missing / partial_match / APPROXIMATE
+                                                                         ├─ ThaiAddressNormalizer.prepare(address)   Thai digits, ถ./ซ./กทม. ..., drop room/floor
+                                                                         ├─ GoogleGeocodingService.findCoordinates(address)   max 3 callouts, stops at first good result
+                                                                         │     1. Geocoding API  – without room/floor
+                                                                         │     2. Geocoding API  – street level (no building name)
+                                                                         │     3. (optional) Places API (New) Text Search – without room/floor
+                                                                         │     "good" = precise AND postcode matches the address
                                                                          ├─ GeoDistanceUtil.distanceInMeters(original, suggested)
                                                                          └─ update Suggested_* + Different_Distance__c   (chains itself for > Batch Size)
 
@@ -37,11 +39,13 @@ force-app/main/default/
 │   ├── AccountLocationGeocodeQueueable.cls   async callout + update, self-chaining
 │   ├── GoogleGeocodingService.cls            Google Geocoding / Places (New) HTTP client
 │   ├── GoogleMapsSettings.cls                reads the Google_Maps_Settings__c custom setting
+│   ├── ThaiAddressNormalizer.cls             cleans Thai addresses into search variants + postcode
 │   ├── GeoDistanceUtil.cls                   distance (meters) helper
 │   ├── GoogleMapsCalloutMock.cls             @IsTest HTTP mock
 │   ├── AccountLocationGeocodingTest.cls      end-to-end trigger/queueable tests
 │   ├── GoogleGeocodingServiceTest.cls
-│   └── GeoDistanceUtilTest.cls
+│   ├── GeoDistanceUtilTest.cls
+│   └── ThaiAddressNormalizerTest.cls
 ├── triggers/AccountLocationTrigger.trigger
 ├── objects/
 │   ├── AccountLocation__c/fields/            Suggested_Latitude__c, Suggested_Longitude__c, Different_Distance__c
