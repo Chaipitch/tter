@@ -1,5 +1,5 @@
 /**
- * Async job: for each ogg__Location__c, geocode ogg__Account__r.Address__c via Google Maps and store
+ * Async job: for each ogg__Location__c, geocode the related Account's Address__c via Google Maps and store
  * Suggested_Latitude__c / Suggested_Longitude__c / Different_Distance__c.
  *
  * Processes GoogleMapsSettings.batchSize() records per execution and chains itself for the rest.
@@ -48,7 +48,9 @@ public without sharing class AccountLocationGeocodeQueueable implements Queueabl
         String latField = GoogleMapsSettings.originalLatitudeField();
         String lngField = GoogleMapsSettings.originalLongitudeField();
 
-        String soql = 'SELECT Id, ogg__Account__r.Address__c, ' + latField + ', ' + lngField
+        // The Account lookup is found at run time (see GoogleMapsSettings.accountLookupField).
+        String accountRel = GoogleMapsSettings.accountRelationshipName();
+        String soql = 'SELECT Id, ' + accountRel + '.Address__c, ' + latField + ', ' + lngField
                     + ' FROM ogg__Location__c WHERE Id IN :ids';
         List<ogg__Location__c> records = Database.queryWithBinds(
             soql, new Map<String, Object>{ 'ids' => ids }, AccessLevel.SYSTEM_MODE);
@@ -62,7 +64,8 @@ public without sharing class AccountLocationGeocodeQueueable implements Queueabl
                 deferred.add(rec.Id);
                 continue;
             }
-            String address = rec.ogg__Account__r == null ? null : rec.ogg__Account__r.Address__c;
+            SObject acc = rec.getSObject(accountRel);
+            String address = acc == null ? null : (String) acc.get('Address__c');
             if (String.isBlank(address)) {
                 continue;
             }

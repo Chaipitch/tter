@@ -61,6 +61,54 @@ public without sharing class GoogleMapsSettings {
         return validatedField(get().Original_Longitude_Field__c, DEFAULT_LONGITUDE_FIELD);
     }
 
+    /**
+     * API name of the lookup / master-detail field on ogg__Location__c that points to Account.
+     * Uses Account_Lookup_Field__c when set; otherwise finds the field from the object's describe,
+     * preferring a field whose name contains "account" if there is more than one.
+     */
+    public static String accountLookupField() {
+        Map<String, Schema.SObjectField> fields = Schema.SObjectType.ogg__Location__c.fields.getMap();
+        String configured = trimToNull(get().Account_Lookup_Field__c);
+        if (configured != null) {
+            Schema.SObjectField f = fields.get(configured.toLowerCase());
+            if (f == null || !isAccountReference(f.getDescribe())) {
+                throw new ConfigurationException('Google_Maps_Settings__c: "' + configured
+                    + '" is not a lookup to Account on ogg__Location__c.');
+            }
+            return f.getDescribe().getName();
+        }
+
+        List<String> found = new List<String>();
+        for (Schema.SObjectField f : fields.values()) {
+            Schema.DescribeFieldResult d = f.getDescribe();
+            if (isAccountReference(d)) {
+                found.add(d.getName());
+            }
+        }
+        if (found.isEmpty()) {
+            throw new ConfigurationException('No lookup to Account found on ogg__Location__c. '
+                + 'Set Account_Lookup_Field__c in Google_Maps_Settings__c.');
+        }
+        found.sort();
+        for (String name : found) {
+            if (name.containsIgnoreCase('account')) {
+                return name;
+            }
+        }
+        return found[0];
+    }
+
+    /** Relationship name of accountLookupField(), e.g. ogg__Account__r, for SOQL. */
+    public static String accountRelationshipName() {
+        return Schema.SObjectType.ogg__Location__c.fields.getMap()
+            .get(accountLookupField().toLowerCase()).getDescribe().getRelationshipName();
+    }
+
+    private static Boolean isAccountReference(Schema.DescribeFieldResult d) {
+        return d.getType() == Schema.DisplayType.REFERENCE
+            && d.getReferenceTo().contains(Account.SObjectType);
+    }
+
     /** Ensures the configured API name is a real field on ogg__Location__c (also prevents SOQL injection). */
     private static String validatedField(String configured, String fallback) {
         String name = String.isBlank(configured) ? fallback : configured.trim();

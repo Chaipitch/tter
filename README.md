@@ -4,8 +4,8 @@ This SFDX project adds Apex that checks the Account's single-field address again
 
 | Field (on `ogg__Location__c`) | Content |
 |---|---|
-| `Suggested_Latitude__c` | Latitude from Google Maps for `ogg__Account__r.Address__c` |
-| `Suggested_Longitude__c` | Longitude from Google Maps for `ogg__Account__r.Address__c` |
+| `Suggested_Latitude__c` | Latitude from Google Maps for the related Account's `Address__c` |
+| `Suggested_Longitude__c` | Longitude from Google Maps for the related Account's `Address__c` |
 | `Different_Distance__c` | Distance in **meters** between the original and the suggested coordinates |
 
 ## How it works
@@ -14,7 +14,7 @@ This SFDX project adds Apex that checks the Account's single-field address again
 ogg__Location__c inserted
    └─ AccountLocationTrigger (after insert)
         └─ AccountLocationTriggerHandler.afterInsert  ── enqueues ──►  AccountLocationGeocodeQueueable  (Database.AllowsCallouts)
-                                                                         ├─ SOQL: ogg__Account__r.Address__c + original lat/lng
+                                                                         ├─ SOQL: <Account lookup>.Address__c + original lat/lng
                                                                          ├─ ThaiAddressNormalizer.prepare(address)   Thai digits, ถ./ซ./กทม. ..., drop room/floor
                                                                          ├─ GoogleGeocodingService.findCoordinates(address)   max 3 callouts, stops at first good result
                                                                          │     1. Geocoding API  – without room/floor
@@ -62,7 +62,7 @@ docs/TESTING_GUIDE.md
 
 These are covered in detail in [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md#1-pre-deployment-checks-in-the-sandbox):
 
-1. The object and field names are already set: `ogg__Location__c` (the ogg package's AccountLocation object), its lookup `ogg__Account__c` → Account, and `Account.Address__c`.
+1. The object is `ogg__Location__c` (the ogg package's AccountLocation object) and the address is `Account.Address__c`. The lookup from `ogg__Location__c` to Account is found automatically at run time, or set in `Account_Lookup_Field__c` if there's more than one.
 2. The Account address field is `Account.Address__c`.
 3. The API names of the original latitude/longitude fields. These are set in the custom setting, so no code change is needed.
 4. Whether `Suggested_Latitude__c`, `Suggested_Longitude__c` and `Different_Distance__c` already exist in the org.

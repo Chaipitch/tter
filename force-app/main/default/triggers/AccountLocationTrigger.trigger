@@ -1,6 +1,6 @@
 /**
  * ogg__Location__c trigger.
- *  - after insert  : queue a Google Maps lookup for ogg__Account__r.Address__c (callouts are not allowed in triggers).
+ *  - after insert  : queue a Google Maps lookup for the related Account's Address__c (callouts are not allowed in triggers).
  *  - before update : recalculate Different_Distance__c whenever the original or suggested coordinates change.
  * All logic lives in AccountLocationTriggerHandler.
  */

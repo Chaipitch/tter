@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Suggested_Longitude__c</fullName>
-    <description>Longitude returned by Google Maps for ogg__Account__r.Address__c. Populated asynchronously by AccountLocationGeocodeQueueable.</description>
+    <description>Longitude returned by Google Maps for the related Account Address__c. Populated asynchronously by AccountLocationGeocodeQueueable.</description>
     <externalId>false</externalId>
     <inlineHelpText>Longitude suggested by Google Maps based on the Account address.</inlineHelpText>
     <label>Suggested Longitude</label>

@@ -14,6 +14,7 @@ s.Language__c                 = 'th';          // Thai addresses -> Thai results
 s.Use_Places_Fallback__c      = true;          // requires "Places API (New)" enabled on the key; helps with building names
 s.Original_Latitude_Field__c  = 'Latitude__c'; // <-- CHANGE to the real field API name
 s.Original_Longitude_Field__c = 'Longitude__c';// <-- CHANGE to the real field API name
+s.Account_Lookup_Field__c     = null;          // blank = find the lookup to Account automatically
 s.Batch_Size__c               = 30;          // max 30 (up to 3 callouts per address)
 s.Timeout_Ms__c               = 10000;
 upsert s;
