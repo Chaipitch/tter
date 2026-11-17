@@ -10,6 +10,7 @@ public without sharing class GoogleMapsSettings {
     @TestVisible private static final String DEFAULT_LONGITUDE_FIELD = 'ogg__Longitude__c';
     @TestVisible private static final Integer DEFAULT_BATCH_SIZE = 30;
     @TestVisible private static final Integer MAX_BATCH_SIZE     = 30;     // up to 3 callouts per record -> 90 of 100 callouts
+    @TestVisible private static final Integer OSM_MAX_BATCH_SIZE = 10;     // Nominatim: max 1 request / second
     @TestVisible private static final Integer DEFAULT_TIMEOUT_MS = 10000;
     @TestVisible private static final Integer MAX_TIMEOUT_MS     = 120000;
 
@@ -25,10 +26,23 @@ public without sharing class GoogleMapsSettings {
         return cached;
     }
 
-    /** Feature is active only when explicitly enabled AND an API key is configured. */
+    /**
+     * Feature is active only when explicitly enabled AND it can call its provider:
+     * Google needs an API key, OpenStreetMap does not.
+     */
     public static Boolean isEnabled() {
         Google_Maps_Settings__c s = get();
-        return s.Enabled__c == true && String.isNotBlank(s.API_Key__c);
+        return s.Enabled__c == true && (useOpenStreetMap() || String.isNotBlank(s.API_Key__c));
+    }
+
+    /**
+     * True when Provider__c is "OpenStreetMap" (or "OSM"): use the free Nominatim geocoder instead of
+     * Google. Temporary option for testing without a Google API key; blank or anything else = Google.
+     */
+    public static Boolean useOpenStreetMap() {
+        String provider = trimToNull(get().Provider__c);
+        return provider != null
+            && (provider.equalsIgnoreCase('OpenStreetMap') || provider.equalsIgnoreCase('OSM'));
     }
 
     public static String apiKey()   { return get().API_Key__c; }
@@ -40,9 +54,10 @@ public without sharing class GoogleMapsSettings {
     public static Integer batchSize() {
         Decimal v = get().Batch_Size__c;
         if (v == null || v < 1) {
-            return DEFAULT_BATCH_SIZE;
+            return useOpenStreetMap() ? OSM_MAX_BATCH_SIZE : DEFAULT_BATCH_SIZE;
         }
-        return Math.min(v.intValue(), MAX_BATCH_SIZE);
+        Integer size = Math.min(v.intValue(), MAX_BATCH_SIZE);
+        return useOpenStreetMap() ? Math.min(size, OSM_MAX_BATCH_SIZE) : size;
     }
 
     public static Integer timeoutMs() {

@@ -11,6 +11,9 @@
  * A result is "good" when it is precise (no partial_match, not APPROXIMATE) and its postcode does not
  * contradict the postcode in the address. If no result is good, the best-scoring one is returned.
  *
+ * Provider__c = "OpenStreetMap" (temporary, no API key): steps 1 and 2 use OpenStreetMapGeocoder (Nominatim)
+ * instead of the Geocoding API, with the same scoring; step 3 is skipped.
+ *
  * Callouts only - no DML.
  */
 public without sharing class GoogleGeocodingService {
@@ -25,6 +28,7 @@ public without sharing class GoogleGeocodingService {
 
     public static final String SOURCE_GEOCODING = 'GEOCODING_API';
     public static final String SOURCE_PLACES    = 'PLACES_TEXT_SEARCH';
+    public static final String SOURCE_OPENSTREETMAP = 'OPENSTREETMAP';
 
     public class GeocodeResult {
         public Decimal latitude;
@@ -66,8 +70,11 @@ public without sharing class GoogleGeocodingService {
         ThaiAddressNormalizer.PreparedAddress prepared = ThaiAddressNormalizer.prepare(address);
         List<GeocodeResult> candidates = new List<GeocodeResult>();
 
+        // Provider__c = OpenStreetMap: same queries and scoring, but Nominatim instead of Google (no Places step)
+        Boolean osm = GoogleMapsSettings.useOpenStreetMap();
+
         for (String query : prepared.geocodingQueries()) {
-            GeocodeResult r = geocode(query);
+            GeocodeResult r = osm ? OpenStreetMapGeocoder.search(query) : geocode(query);
             if (r != null) {
                 evaluate(r, query, prepared.postcode);
                 if (r.isGood()) {
@@ -77,7 +84,7 @@ public without sharing class GoogleGeocodingService {
             }
         }
 
-        if (GoogleMapsSettings.usePlacesFallback()) {
+        if (!osm && GoogleMapsSettings.usePlacesFallback()) {
             try {
                 GeocodeResult r = searchText(prepared.withoutUnit);
                 if (r != null) {

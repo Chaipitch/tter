@@ -7,6 +7,7 @@ if (s == null || s.Id == null) {
     s = new Google_Maps_Settings__c(SetupOwnerId = UserInfo.getOrganizationId());
 }
 s.Enabled__c                  = true;
+s.Provider__c                 = 'Google';      // 'OpenStreetMap' = free, no key (temporary, testing only)
 s.API_Key__c                  = 'PASTE_YOUR_GOOGLE_API_KEY_HERE';
 s.Country_Code__c             = 'TH';          // restrict Geocoding results to Thailand
 s.Region__c                   = 'th';          // result bias, blank = none

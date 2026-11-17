@@ -39,6 +39,7 @@ force-app/main/default/
 │   ├── AccountLocationGeocodeQueueable.cls   async callout + update, self-chaining
 │   ├── GoogleGeocodingService.cls            Google Geocoding / Places (New) HTTP client
 │   ├── GoogleMapsSettings.cls                reads the Google_Maps_Settings__c custom setting
+│   ├── OpenStreetMapGeocoder.cls             TEMPORARY no-key provider (OpenStreetMap Nominatim)
 │   ├── ThaiAddressNormalizer.cls             cleans Thai addresses into search variants + postcode
 │   ├── GeoDistanceUtil.cls                   distance (meters) helper
 │   ├── GoogleMapsCalloutMock.cls             @IsTest HTTP mock
@@ -46,15 +47,16 @@ force-app/main/default/
 │   ├── AccountLocationGeocodingTest.cls      end-to-end button/queueable tests
 │   ├── GoogleGeocodingServiceTest.cls
 │   ├── GeoDistanceUtilTest.cls
-│   └── ThaiAddressNormalizerTest.cls
+│   ├── ThaiAddressNormalizerTest.cls
+│   └── OpenStreetMapGeocoderTest.cls
 ├── lwc/suggestGoogleLocation/                headless quick action (button → job → toast)
 ├── quickActions/ogg__Location__c.Suggest_Google_Location   the "Suggest Location (Google)" button
 ├── objects/Google_Maps_Settings__c/          hierarchy custom setting (API key, switches, field mapping)
-├── remoteSiteSettings/                       maps.googleapis.com, places.googleapis.com
+├── remoteSiteSettings/                       maps.googleapis.com, places.googleapis.com, nominatim.openstreetmap.org
 └── permissionsets/AccountLocation_Geocoding  read access to the 3 suggested/distance fields
 manifest/package.xml                          deployment manifest
 manifest/destructiveChanges.xml               removes the old trigger from orgs that had it
-scripts/apex/                                 anonymous Apex: configure settings, probe an address, back-fill old records
+scripts/apex/                                 anonymous Apex: configure settings (Google or OpenStreetMap), probe an address, back-fill old records
 docs/HOW_IT_WORKS.md                         how the feature works, design decisions, limits
 docs/DEPLOYMENT_GUIDE.md                      deploy to a sandbox / production
 docs/TESTING_GUIDE.md                         unit + functional tests

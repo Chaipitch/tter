@@ -58,11 +58,15 @@ When a test inserts an Account with an address, UPWARD may create its own `ogg__
 
 The running user needs no access to the target fields. The job runs in system mode. To see the fields on the page, give your users read access, either through the permission set in step 3.4 or through their profile.
 
-### 1.6 Old trigger in `tterakit-sb`
+### 1.6 Old trigger (only for orgs that still have it)
 
-Earlier versions ran automatically through `AccountLocationTrigger` (with `AccountLocationTriggerHandler`). That trigger is already deployed in `tterakit-sb`. It's now replaced by the button, so it must be **removed** in the same deployment. Otherwise it keeps firing on every new record. The deploy commands in step 3 do this with `--post-destructive-changes manifest/destructiveChanges.xml`.
+Earlier versions ran automatically through `AccountLocationTrigger` (with `AccountLocationTriggerHandler`). In `tterakit-sb` they were already removed when the button version was deployed. Production never had them.
 
-For an org that never had the trigger (for example production), leave out `--post-destructive-changes`.
+If you deploy to an org that still has them, add this flag to the validate and deploy commands in step 3. Otherwise the trigger keeps firing on every new record:
+
+```bash
+--post-destructive-changes manifest/destructiveChanges.xml
+```
 
 ---
 
@@ -103,11 +107,11 @@ sf project deploy validate \
   --tests GoogleGeocodingServiceTest \
   --tests GeoDistanceUtilTest \
   --tests ThaiAddressNormalizerTest \
-  --post-destructive-changes manifest/destructiveChanges.xml \
+  --tests OpenStreetMapGeocoderTest \
   --wait 30
 ```
 
-Fix any errors that come up. Section 6 lists the common ones. `--post-destructive-changes` removes the old trigger and handler (see 1.6); leave it out for an org that never had them.
+Fix any errors that come up. Section 6 lists the common ones.
 
 ### 3.3 Deploy
 
@@ -120,7 +124,7 @@ sf project deploy start \
   --tests GoogleGeocodingServiceTest \
   --tests GeoDistanceUtilTest \
   --tests ThaiAddressNormalizerTest \
-  --post-destructive-changes manifest/destructiveChanges.xml \
+  --tests OpenStreetMapGeocoderTest \
   --wait 30
 ```
 
@@ -149,7 +153,20 @@ Also add `Suggested Latitude`, `Suggested Longtitude` and `Different Distance` t
 
 ## 4. Configure the custom setting
 
-The feature is **off** until the Organization Default of `Google_Maps_Settings__c` has `Enabled__c = true` and an API key.
+The feature is **off** until the Organization Default of `Google_Maps_Settings__c` has `Enabled__c = true` and either an API key (Google) or *Provider* = `OpenStreetMap`.
+
+**No Google API key yet? Use OpenStreetMap for now (temporary)**
+
+```bash
+sf apex run --file scripts/apex/configure-openstreetmap.apex --target-org tterakit-sb
+```
+
+This sets *Provider* = `OpenStreetMap` and *Enabled*, with no key. The button then uses the free OpenStreetMap Nominatim geocoder instead of Google. Keep in mind:
+* **Testing and demos only.** Thai coverage in OpenStreetMap is weaker than Google's, especially for house numbers. Expect more street- or district-level pins and larger distances. Don't judge the feature's accuracy from these results.
+* **Usage policy: at most 1 request per second, no bulk use.** The code spaces requests 1.1 s apart and processes at most 10 records per job. Don't run the back-fill script on many records with OpenStreetMap.
+* **Places fallback isn't used.** With OpenStreetMap the search is: address without room/floor, then street level.
+* **Switching to Google later:** run Option A below. It sets *Provider* = `Google` and the key. Nothing else changes.
+
 
 **Option A – script (recommended)**
 
@@ -173,7 +190,8 @@ Go to **Setup → Custom Settings → Google Maps Settings → Manage → New** 
 | Field | Value |
 |---|---|
 | Enabled | ✔ |
-| API Key | your key |
+| Provider | `Google` (or blank). `OpenStreetMap` = temporary no-key option, see above |
+| API Key | your key (not needed for OpenStreetMap) |
 | Use Places Fallback | ✔ if Places API (New) is enabled |
 | Country Code | `TH` (restricts Geocoding results to Thailand) |
 | Region | `th` (biases results to Thailand) |
@@ -183,7 +201,7 @@ Go to **Setup → Custom Settings → Google Maps Settings → Manage → New** 
 | Batch Size | `30` (max 30, because one address can take up to 3 callouts) |
 | Timeout (ms) | `10000` |
 
-The Remote Site Settings `Google_Maps_Geocoding_API` and `Google_Places_API` are deployed by the project. Check that they're active under **Setup → Remote Site Settings**.
+The Remote Site Settings `Google_Maps_Geocoding_API`, `Google_Places_API` and `OpenStreetMap_Nominatim` are deployed by the project. Check that they're active under **Setup → Remote Site Settings**.
 
 ---
 
@@ -222,6 +240,6 @@ A line like `source=GEOCODING_API lat=13.74... lng=100.53...` in the output mean
 
 ## 8. Promoting to production later
 
-* Use `--test-level RunSpecifiedTests` with the four test classes (or `RunLocalTests`). Production requires 75% coverage overall. **Leave out `--post-destructive-changes`**: production never had the trigger.
+* Use `--test-level RunSpecifiedTests` with the five test classes (or `RunLocalTests`). Production requires 75% coverage overall.
 * Repeat steps 3.4, 3.5 and 4 in production, using a **production** API key with its own quota.
 * To fill in many records at once (instead of clicking the button on each), run `scripts/apex/regeocode-existing.apex`.

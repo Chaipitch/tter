@@ -10,6 +10,8 @@
         <members>GoogleGeocodingServiceTest</members>
         <members>GoogleMapsCalloutMock</members>
         <members>GoogleMapsSettings</members>
+        <members>OpenStreetMapGeocoder</members>
+        <members>OpenStreetMapGeocoderTest</members>
         <members>TestRecordFactory</members>
         <members>ThaiAddressNormalizer</members>
         <members>ThaiAddressNormalizerTest</members>
@@ -23,6 +25,7 @@
         <members>Google_Maps_Settings__c.Language__c</members>
         <members>Google_Maps_Settings__c.Original_Latitude_Field__c</members>
         <members>Google_Maps_Settings__c.Original_Longitude_Field__c</members>
+        <members>Google_Maps_Settings__c.Provider__c</members>
         <members>Google_Maps_Settings__c.Region__c</members>
         <members>Google_Maps_Settings__c.Timeout_Ms__c</members>
         <members>Google_Maps_Settings__c.Use_Places_Fallback__c</members>
@@ -47,6 +50,7 @@
     <types>
         <members>Google_Maps_Geocoding_API</members>
         <members>Google_Places_API</members>
+        <members>OpenStreetMap_Nominatim</members>
         <name>RemoteSiteSetting</name>
     </types>
     <version>62.0</version>

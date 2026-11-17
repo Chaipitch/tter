@@ -150,6 +150,22 @@ When two results tie, the earlier (cheaper) one wins. A result whose postcode di
 | Geocoding error (`REQUEST_DENIED`, `OVER_QUERY_LIMIT`, HTTP 4xx/5xx) | the address is skipped with a log message; the record is unchanged |
 | Places error (for example, the API isn't enabled) | ignored; the Geocoding result, if any, is used |
 
+### 4.5 Temporary provider: OpenStreetMap (no API key)
+
+When the custom setting's *Provider* is `OpenStreetMap`, `OpenStreetMapGeocoder` replaces the Google calls. It's meant for testing until a Google API key is available.
+
+| | Google (default) | OpenStreetMap |
+|---|---|---|
+| API key | required | none |
+| Search steps | Geocoding `withoutUnit` → Geocoding `streetLevel` → Places | Nominatim `withoutUnit` → Nominatim `streetLevel` |
+| Request | `maps.googleapis.com/maps/api/geocode/json` | `nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=th&accept-language=th` |
+| "Precise" | not `partial_match`, not `APPROXIMATE` | `place_rank` ≥ 26 (street, house, building) |
+| Postcode check | `address_components` → `postal_code` | `address.postcode` |
+| Rate | no limit beyond the callout limits | ≤ 1 request/s: requests are spaced 1.1 s apart, batch ≤ 10 records |
+| Thai coverage | good | weaker, especially house numbers |
+
+The scoring and postcode check (§4.3) are the same for both. The Nominatim usage policy also requires the request to identify the application, so the code sends a generic `User-Agent` and no company or personal details. To go back to Google, set *Provider* to `Google` (or blank) and add the API key.
+
 ---
 
 ## 5. Distance
@@ -167,16 +183,17 @@ This is a hierarchy custom setting; only the **Organization Default** record is 
 | Field | Default | Purpose |
 |---|---|---|
 | Enabled | off | Master switch for the whole feature |
-| API Key | — | Google Maps Platform key |
+| Provider | Google | `OpenStreetMap` = temporary no-key provider (§4.5) |
+| API Key | — | Google Maps Platform key (not needed for OpenStreetMap) |
 | Country Code | — (set `TH`) | Restricts Geocoding results to that country |
 | Region | — (set `th`) | Biases results |
 | Language | — (set `th`) | Language of Google's formatted address |
 | Use Places Fallback | off (set on) | Enables search step 3 |
 | Original Latitude Field / Original Longitude Field | `ogg__Latitude__c` / `ogg__Longitude__c` | Where UPWARD's pin is stored; checked against the object's fields |
-| Batch Size | 30 (max 30) | Records per background job |
+| Batch Size | 30 (max 30; max 10 with OpenStreetMap) | Records per background job |
 | Timeout (ms) | 10000 (max 120000) | Per-callout timeout |
 
-The Remote Site Settings `Google_Maps_Geocoding_API` and `Google_Places_API` allow the two Google hosts.
+The Remote Site Settings `Google_Maps_Geocoding_API`, `Google_Places_API` and `OpenStreetMap_Nominatim` allow the three hosts.
 
 ---
 
@@ -189,6 +206,7 @@ The Remote Site Settings `Google_Maps_Geocoding_API` and `Google_Places_API` all
 | `classes/AccountLocationGeocodeAction.cls` | `@AuraEnabled enqueue` / `getStatus` used by the button |
 | `classes/AccountLocationGeocodeQueueable.cls` | Batching and chaining, Account lookup through `ogg__ObjectId__c`, callouts, one update per batch |
 | `classes/GoogleGeocodingService.cls` | HTTP calls to the Geocoding and Places APIs, search order, scoring |
+| `classes/OpenStreetMapGeocoder.cls` | Temporary no-key provider: Nominatim request, throttling, result mapping |
 | `classes/ThaiAddressNormalizer.cls` | Thai address cleaning, search variants, postcode |
 | `classes/GeoDistanceUtil.cls` | Distance in meters, safe number conversion |
 | `classes/GoogleMapsSettings.cls` | Reads the custom setting, defaults, field-name checks |
