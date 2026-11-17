@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Use_Places_Fallback__c</fullName>
+    <description>When checked, Places API (New) Text Search is tried when the Geocoding API gives no precise result whose postcode matches the address.</description>
+    <externalId>false</externalId>
+    <label>Use Places Fallback</label>
+    <defaultValue>false</defaultValue>
+    <type>Checkbox</type>
+</CustomField>
