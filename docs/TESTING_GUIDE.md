@@ -45,11 +45,28 @@ sf apex run test \
 
 ### Test data
 
-`scripts/apex/create-test-data.apex` creates 18 Accounts named `GEO-TEST …`, each with an oggLocation and a deliberate "UPWARD pin". It's safe to re-run: existing cases are skipped. They cover the main cases: building + room + floor, a correct pin, a wrong district, abbreviations, English units, Thai digits, upcountry with no pin, district only, nonsense, and a blank address (01–10). Cases 11–18 are edge cases, described in TC-18 and TC-19. Each case's expected location is in the script's comments. Remove them with `scripts/apex/delete-test-data.apex`. The on-create trigger looks the new records up automatically right away. To test the buttons with them instead, check *Disable Lookup On Create* in Google Maps Settings before running the script.
+The test data follows the real flow: the script creates Accounts, and **UPWARD creates the oggLocations**.
 
-```bash
-sf apex run --file scripts/apex/create-test-data.apex --target-org tterakit-sb
-```
+1. **Create the Accounts:** `scripts/apex/create-test-data.apex` creates 18 Accounts named `GEO-TEST …` with Thai addresses chosen per test case. 01–10 are everyday cases; 11–18 are edge cases, see TC-18 and TC-19. It's safe to re-run: existing Accounts are skipped.
+
+   ```bash
+   sf apex run --file scripts/apex/create-test-data.apex --target-org tterakit-sb
+   ```
+
+2. **Wait for UPWARD** to create the oggLocations, then check them. The on-create trigger looks them up automatically:
+
+   ```bash
+   sf data query --target-org tterakit-sb --query "SELECT Name, ogg__ObjectId__c, ogg__RawAddress__c, ogg__Latitude__c, ogg__Longitude__c, Suggested_Latitude__c, Suggested_Longtitude__c, Different_Distance__c, isCoordsUpdated__c, CreatedBy.Name FROM ogg__Location__c ORDER BY CreatedDate DESC LIMIT 25"
+   ```
+
+   UPWARD may not create one for case 10 (blank address) or 09 (nonsense).
+3. **Optional: apply the test pins.** UPWARD sets its own (real) pins. For the pin cases, especially 11–16 (pin far away, `0,0`, swapped and so on), run `scripts/apex/apply-test-pins.apex`. It overwrites the pins with deliberate test pins and clears the results (suggested fields, distance, flag). Then run the list view button with nothing ticked. Re-run the script any time to reset the GEO-TEST results.
+
+   ```bash
+   sf apex run --file scripts/apex/apply-test-pins.apex --target-org tterakit-sb
+   ```
+
+Remove everything with `scripts/apex/delete-test-data.apex`; it also deletes the oggLocations UPWARD created for the GEO-TEST Accounts. The expected result of each case is in the comments of `create-test-data.apex`.
 
 ### Testing without a Google API key (OpenStreetMap)
 
@@ -94,8 +111,8 @@ Create each Account the way users normally do, so that UPWARD creates the oggLoc
 | TC-15 | Nightly schedule | Run `scripts/apex/schedule-nightly.apex`; create a new Account so UPWARD creates a location; check the next morning | Setup → Scheduled Jobs lists *Suggest locations nightly*. The new location has suggested values after the run. Delete the scheduled job after testing if it isn't wanted yet. |
 | TC-16 | OpenStreetMap cap | With Provider = OpenStreetMap, run TC-13 with more than 200 unprocessed records | The page warns about the 200-record cap. At most 200 records are processed and flagged in that run; the next run continues with the rest. |
 | TC-17 | Re-queue a processed record | Untick `isCoordsUpdated__c` on a processed record, then run TC-13 | That record is processed again (new Last Modified Date); other flagged records aren't. |
-| TC-18 | UPWARD pin far away or invalid | Test data 11–16: the same Siam Paragon address with the pin in Chiang Mai, in Singapore, at `0,0`, with the longitude sign flipped, at the antipode, and with lat/lng swapped | Suggestion at Siam Paragon (~13.746, 100.535) every time. Different Distance ≈ 585 km, 1,430 km, 11,145 km, 16,180 km and 20,015 km (the maximum possible). **Swapped lat/lng: distance stays empty**, because a latitude of 100.5 isn't a valid coordinate. If UPWARD rejects that pin at insert, the create script says so. |
-| TC-19 | Address side contradicts | Test data 17: Phuket address, Bangkok pin. Test data 18: Bangkok address with Chiang Mai postcode 50000, correct pin | 17: suggestion in Phuket Town (~7.88, 98.39), distance ≈ 690 km. 18: the probe script shows `postcodeMatch=false`; all search steps are tried and the best-scored result is used (most likely still Siam Paragon, small distance). Treat 18 as "needs review": the address itself is inconsistent. |
+| TC-18 | UPWARD pin far away or invalid | Test data 11–16, after `apply-test-pins.apex`: the same Siam Paragon address with the pin in Chiang Mai, in Singapore, at `0,0`, with the longitude sign flipped, at the antipode, and with lat/lng swapped | Suggestion at Siam Paragon (~13.746, 100.535) every time. Different Distance ≈ 585 km, 1,430 km, 11,145 km, 16,180 km and 20,015 km (the maximum possible). **Swapped lat/lng: distance stays empty**, because a latitude of 100.5 isn't a valid coordinate. If UPWARD rejects that pin at insert, the create script says so. |
+| TC-19 | Address side contradicts | After `apply-test-pins.apex`. Test data 17: Phuket address, Bangkok pin. Test data 18: Bangkok address with Chiang Mai postcode 50000, correct pin | 17: suggestion in Phuket Town (~7.88, 98.39), distance ≈ 690 km. 18: the probe script shows `postcodeMatch=false`; all search steps are tried and the best-scored result is used (most likely still Siam Paragon, small distance). Treat 18 as "needs review": the address itself is inconsistent. |
 
 ### Checking the job
 
