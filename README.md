@@ -2,8 +2,8 @@
 
 This SFDX project checks the Account's single-field address of `ogg__Location__c` records against Google Maps in the background, and stores Google's coordinates next to the ones UPWARD saved. It's built for **large volumes**:
 
-* **List view button "Suggest Locations (Google)"**: tick records, or tick nothing to process **all records without a suggestion**. Runs as Batch Apex.
-* **Scheduled run** (for example nightly) over all records without a suggestion: `scripts/apex/schedule-nightly.apex`.
+* **List view button "Suggest Locations (Google)"**: tick records, or tick nothing to process **all records not processed yet (`isCoordsUpdated__c` unchecked)**. Runs as Batch Apex. Each processed record gets `isCoordsUpdated__c` = true, so it isn't processed again.
+* **Scheduled run** (for example nightly) over all records not processed yet: `scripts/apex/schedule-nightly.apex`.
 * **Record button "Suggest Location (Google)"**: one record, with the result shown in a toast.
 
 Fields written:
@@ -13,6 +13,7 @@ Fields written:
 | `Suggested_Latitude__c` | Latitude from Google Maps for the related Account's `Address__c` |
 | `Suggested_Longtitude__c` | Longitude from Google Maps for the related Account's `Address__c` |
 | `Different_Distance__c` | Distance in **meters** between the original and the suggested coordinates |
+| `isCoordsUpdated__c` | Set to true once coordinates were written; automatic runs skip records where it's true |
 
 ## How it works
 
@@ -23,7 +24,7 @@ Bulk:   list view button "Suggest Locations (Google)" ─► VF page AccountLoca
         scheduled job / regeocode-existing.apex          │
                                                           ▼
                                        AccountLocationGeocodeBatch  (Batch Apex, 30 records per execute; 10 with OpenStreetMap)
-                                         selected records, or all with Suggested_Latitude__c = null
+                                         selected records, or all with isCoordsUpdated__c = false
                                                           │
 Single: record button "Suggest Location (Google)" ─► LWC ─► AccountLocationGeocodeAction ─► AccountLocationGeocodeQueueable
                                                           │                                (toast with the result)
@@ -43,7 +44,7 @@ Single: record button "Suggest Location (Google)" ─► LWC ─► AccountLocat
 ```
 force-app/main/default/
 ├── classes/
-│   ├── AccountLocationGeocodeBatch.cls       BULK: Batch Apex over selected / all records without a suggestion; Schedulable
+│   ├── AccountLocationGeocodeBatch.cls       BULK: Batch Apex over selected / all records not processed yet; Schedulable
 │   ├── AccountLocationGeocodeListController.cls  list view button page controller
 │   ├── AccountLocationGeocodeProcessor.cls   shared: find address, geocode, save (used by batch + queueable)
 │   ├── AccountLocationGeocodeAction.cls      record button Apex: start the job, report its status
@@ -85,4 +86,4 @@ HANDOFF.md                                    ← start here: status, next steps
 | Link to the Account | `ogg__ObjectId__c` (Text 18, the Account Id; `ogg__prefix__c` = `001`). There's no lookup field. |
 | Address on Account | `Account.Address__c`. If `ogg__ObjectId__c` points to a record that isn't an Account (or the Account is gone), `ogg__Location__c.ogg__RawAddress__c` is used instead. |
 | Original coordinates | `ogg__Latitude__c`, `ogg__Longitude__c` |
-| Target fields (already in the org, **not** deployed by this project) | `Suggested_Latitude__c`, `Suggested_Longtitude__c` (spelled *Longtitude* in the org), `Different_Distance__c` |
+| Target fields (already in the org, **not** deployed by this project) | `Suggested_Latitude__c`, `Suggested_Longtitude__c` (spelled *Longtitude* in the org), `Different_Distance__c`, `isCoordsUpdated__c` (checkbox: processed) |

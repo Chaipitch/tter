@@ -44,7 +44,7 @@ The project is built for these names in `tterakit-sb`. Check that production use
 
 ### 1.2 Target fields already exist (not deployed)
 
-`Suggested_Latitude__c`, **`Suggested_Longtitude__c`** (that's the spelling in the org) and `Different_Distance__c` already exist on `ogg__Location__c`. The project only reads and writes them; it doesn't deploy them, so their definitions stay as they are.
+`Suggested_Latitude__c`, **`Suggested_Longtitude__c`** (that's the spelling in the org), `Different_Distance__c` and the checkbox `isCoordsUpdated__c` already exist on `ogg__Location__c`. The project only reads and writes them; it doesn't deploy them, so their definitions stay as they are. The permission set grants read access to the first three and read/edit access to `isCoordsUpdated__c`, so users can untick it to have a record processed again.
 
 ### 1.3 Required fields on Account
 
@@ -148,7 +148,7 @@ Both buttons are deployed, but they only show once they're placed.
 
 **List view button "Suggest Locations (Google)"** (bulk):
 * Setup → Object Manager → **oggLocation** → **List View Button Layout** → edit the *List View* row → move **Suggest Locations (Google)** to *Selected Buttons* → Save.
-* It then appears at the top right of every oggLocation list view. Tick records and click it to process them, or click it with nothing ticked to process all records without a suggestion. A list view such as "Suggested Latitude equals (empty)" is handy for checking progress.
+* It then appears at the top right of every oggLocation list view. Tick records and click it to process them, or click it with nothing ticked to process all records not processed yet (`isCoordsUpdated__c` unchecked). A list view filtered on *isCoordsUpdated equals False* is handy for checking what's left.
 
 **Record button "Suggest Location (Google)"** (single record):
 * **Page layout** (most orgs): Setup → Object Manager → **oggLocation** → Page Layouts → open the layout → **Mobile & Lightning Actions** → drag **Suggest Location (Google)** into *Salesforce Mobile and Lightning Experience Actions* → Save. If that section shows "predefined actions", click the wrench icon first to override them.
@@ -158,7 +158,7 @@ Also add `Suggested Latitude`, `Suggested Longtitude` and `Different Distance` t
 
 ### 3.6 Optional: nightly run
 
-To fill in new records automatically every night (02:00, org time zone), for all records without a suggestion:
+To fill in new records automatically every night (02:00, org time zone), for all records not processed yet (`isCoordsUpdated__c` unchecked):
 
 ```bash
 sf apex run --file scripts/apex/schedule-nightly.apex --target-org tterakit-sb

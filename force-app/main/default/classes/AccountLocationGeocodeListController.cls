@@ -3,7 +3,7 @@
  * (Visualforce page AccountLocationGeocodeList).
  *
  *  - records ticked in the list view  -> geocode those records
- *  - nothing ticked                   -> geocode all records without a suggestion
+ *  - nothing ticked                   -> geocode all records not processed yet (isCoordsUpdated__c = false)
  *
  * Starts AccountLocationGeocodeBatch and shows the job Id; progress is in Setup -> Apex Jobs.
  */

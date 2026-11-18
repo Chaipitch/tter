@@ -4,7 +4,9 @@
  *
  * For each record: Account Id from ogg__ObjectId__c -> Account.Address__c (fallback ogg__RawAddress__c)
  * -> GoogleGeocodingService (Google or OpenStreetMap) -> Suggested_Latitude__c / Suggested_Longtitude__c /
- * Different_Distance__c. All callouts first, then one partial-success update.
+ * Different_Distance__c, and isCoordsUpdated__c = true (only when coordinates were written; records with no
+ * result or a blank address keep the flag false so they can be retried). All callouts first, then one
+ * partial-success update.
  * Runs without sharing: a system process that must update records regardless of the running user.
  */
 public without sharing class AccountLocationGeocodeProcessor {
@@ -60,6 +62,7 @@ public without sharing class AccountLocationGeocodeProcessor {
                 // Distance is calculated from UPWARD's pin as it is right now.
                 updates.add(new ogg__Location__c(
                     Id = rec.Id,
+                    isCoordsUpdated__c     = true,   // processed: automatic runs skip it from now on
                     Suggested_Latitude__c  = suggestedLat,
                     Suggested_Longtitude__c = suggestedLng,
                     Different_Distance__c  = GeoDistanceUtil.distanceInMeters(

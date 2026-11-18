@@ -26,7 +26,7 @@ sf apex run test \
 | `GoogleGeocodingServiceTest` | Thai search order (address without room/floor → street level → Places); postcode check; best-score choice; country/region/language params; Places failure keeps the Geocoding result; REQUEST_DENIED and HTTP 500 errors; blank address; settings defaults/validation |
 | `ThaiAddressNormalizerTest` | Room/floor removal (`ห้องเลขที่ 91,96`, `ชั้นที่ 9`, `Room`, `12th Floor`); building removal; Thai digits; abbreviations (`ถ.`, `ซ.`, `ต.`, `อ.`, `จ.`, `ม.`, `กทม.`, `กรุงเทพฯ`); postcode extraction |
 | `OpenStreetMapGeocoderTest` | Provider switch (`OpenStreetMap`/`OSM`/blank/`Google`); enabled without an API key; batch capped at 10; Nominatim request (`format=jsonv2`, `countrycodes`, `accept-language`, User-Agent, no key); area result → street-level query; best result when only area results; empty result; HTTP 429; button end to end with OpenStreetMap; Google and Places never called |
-| `AccountLocationGeocodeBatchTest` | Bulk: ticked records are processed even if they already have a suggestion; nothing ticked = all records without a suggestion; feature off can't start; OpenStreetMap run capped at 200 (Google not capped); scheduled entry point; list view button controller with and without ticked records, and when the feature is off |
+| `AccountLocationGeocodeBatchTest` | Bulk: ticked records are processed even if already flagged; nothing ticked = all records with `isCoordsUpdated__c` = false, which are flagged afterwards; the flag (not Suggested Latitude) decides what automatic runs pick up; feature off can't start; OpenStreetMap run capped at 200 (Google not capped); scheduled entry point; list view button controller with and without ticked records, and when the feature is off |
 | `GeoDistanceUtilTest` | Distance math (known distances, same point = 0, null/out-of-range input) |
 
 ---
@@ -65,7 +65,7 @@ Before searching, Thai digits (๐–๙) are converted, and abbreviations (`ถ
 
 ### Test cases
 
-Create each Account the way users normally do, so that UPWARD creates the oggLocation record. TC-01 – TC-11 use the **record button**: open the oggLocation record and click **Suggest Location (Google)**. Within a few seconds a toast shows the result and the record refreshes. TC-12 – TC-16 test **bulk processing** with the list view button and the schedule.
+Create each Account the way users normally do, so that UPWARD creates the oggLocation record. TC-01 – TC-11 use the **record button**: open the oggLocation record and click **Suggest Location (Google)**. Within a few seconds a toast shows the result and the record refreshes. TC-12 – TC-17 test **bulk processing** with the list view button and the schedule.
 
 | # | Scenario | Steps | Expected result |
 |---|---|---|---|
@@ -80,11 +80,12 @@ Create each Account the way users normally do, so that UPWARD creates the oggLoc
 | TC-09 | Click again after UPWARD changes its pin | Change the original Lat/Lng (or wait for UPWARD to update it), click the button again | Suggested values and Different Distance are refreshed. If you set the original Lat/Lng to the suggested values first, the distance is 0. |
 | TC-10 | Double click | Click the button twice quickly | Only one lookup runs; one result toast. |
 | TC-11 | Non-admin user | Repeat TC-01 as a standard sales user with the permission set | Same result. Without the permission set, the button shows an error. |
-| TC-12 | List view, ticked records | In an oggLocation list view, tick 5–20 records (some with and some without a suggestion), click **Suggest Locations (Google)** → **Start** | The page shows a batch job Id. **Setup → Apex Jobs** shows `AccountLocationGeocodeBatch` Completed. All ticked records have new suggested values, including those that had one before. |
-| TC-13 | List view, nothing ticked | Click **Suggest Locations (Google)** without ticking anything → **Start** | The page says it processes all records without a suggestion. Afterwards a list view filtered on *Suggested Latitude equals (empty)* only shows records whose address is blank or couldn't be found. |
-| TC-14 | Large volume (Google only) | With Google as the provider, run TC-13 or `scripts/apex/regeocode-existing.apex` on a sandbox with 1,000+ locations without a suggestion | Apex Jobs shows the batch progressing in chunks of 30 (*Batches Processed / Total Batches*) and finishing Completed with 0 failures. Spot-check results (§3). Check the request count in Google Cloud against the quota. |
+| TC-12 | List view, ticked records | In an oggLocation list view, tick 5–20 records (some with `isCoordsUpdated__c` checked, some not), click **Suggest Locations (Google)** → **Start** | The page shows a batch job Id. **Setup → Apex Jobs** shows `AccountLocationGeocodeBatch` Completed. All ticked records have new suggested values and `isCoordsUpdated__c` checked, including those that were checked before. |
+| TC-13 | List view, nothing ticked | Click **Suggest Locations (Google)** without ticking anything → **Start**. Then click it again once the first run has finished | The page says it processes all records not processed yet. After the first run, a list view filtered on *isCoordsUpdated equals False* only shows records whose address is blank or couldn't be found. The second run doesn't touch records processed by the first (check *Last Modified Date*). |
+| TC-14 | Large volume (Google only) | With Google as the provider, run TC-13 or `scripts/apex/regeocode-existing.apex` on a sandbox with 1,000+ unprocessed locations | Apex Jobs shows the batch progressing in chunks of 30 (*Batches Processed / Total Batches*) and finishing Completed with 0 failures. Spot-check results (§3). Check the request count in Google Cloud against the quota. |
 | TC-15 | Nightly schedule | Run `scripts/apex/schedule-nightly.apex`; create a new Account so UPWARD creates a location; check the next morning | Setup → Scheduled Jobs lists *Suggest locations nightly*. The new location has suggested values after the run. Delete the scheduled job after testing if it isn't wanted yet. |
-| TC-16 | OpenStreetMap cap | With Provider = OpenStreetMap, run TC-13 with more than 200 records without a suggestion | The page warns about the 200-record cap. At most 200 records get suggested values in that run. |
+| TC-16 | OpenStreetMap cap | With Provider = OpenStreetMap, run TC-13 with more than 200 unprocessed records | The page warns about the 200-record cap. At most 200 records are processed and flagged in that run; the next run continues with the rest. |
+| TC-17 | Re-queue a processed record | Untick `isCoordsUpdated__c` on a processed record, then run TC-13 | That record is processed again (new Last Modified Date); other flagged records aren't. |
 
 ### Checking the job
 
@@ -129,7 +130,8 @@ The output first shows the query variants built from the Thai address (`withoutU
 |---|---|
 | Button missing | List view button: add it in *List View Button Layout*. Record button: add it to the page layout / Lightning page. See DEPLOYMENT_GUIDE 3.5. |
 | List view button page: *Insufficient privileges* | Assign the `AccountLocation_Geocoding` permission set (it grants the page and its controller). |
-| Batch Completed but some records still empty | Those addresses are blank or weren't found; check the debug log of the user who started it. With OpenStreetMap, only 200 records are processed per run. |
+| Batch Completed but some records still empty | Those addresses are blank or weren't found (their `isCoordsUpdated__c` stays unchecked, so they're retried next run); check the debug log of the user who started it. With OpenStreetMap, only 200 records are processed per run. |
+| A record is never picked up by the nightly run / nothing ticked | Its `isCoordsUpdated__c` is already checked. Tick the record in the list view, use the record button, or untick the flag. |
 | Batch stays *Holding* / *Queued* | Other batch jobs in the org are running; Salesforce runs at most 5 at a time. It starts when one finishes. |
 | Error toast when clicking | *turned off* → custom setting: *Enabled* and API key, on the **Organization** default. *You do not have access to the Apex class* → assign the `AccountLocation_Geocoding` permission set. |
 | Toast *Still running* | The job queue is busy. The job still finishes; refresh the page in a minute, or check **Setup → Apex Jobs**. |
@@ -147,7 +149,7 @@ The output first shows the query variants built from the Thai address (`withoutU
 ## 6. Sign-off checklist
 
 - [ ] Unit tests pass, coverage ≥ 75% (target > 85%)
-- [ ] TC-01 – TC-16 executed and results recorded
+- [ ] TC-01 – TC-17 executed and results recorded
 - [ ] Accuracy sample (§3) reviewed with the business
 - [ ] API key restricted and quota set in Google Cloud
 - [ ] Permission set assigned to the right users, fields on the layout
