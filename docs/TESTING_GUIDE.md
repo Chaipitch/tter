@@ -43,6 +43,14 @@ sf apex run test \
   sf apex tail log --color --target-org tterakit-sb
   ```
 
+### Test data
+
+`scripts/apex/create-test-data.apex` creates 10 Accounts named `GEO-TEST …`, each with an oggLocation and a deliberate "UPWARD pin". They cover the main cases: building + room + floor, a correct pin, a wrong district, abbreviations, English units, Thai digits, upcountry with no pin, district only, nonsense, and a blank address. Each case's expected location is in the script's comments. Remove them with `scripts/apex/delete-test-data.apex`.
+
+```bash
+sf apex run --file scripts/apex/create-test-data.apex --target-org tterakit-sb
+```
+
 ### Testing without a Google API key (OpenStreetMap)
 
 Until the Google key is available, run `scripts/apex/configure-openstreetmap.apex` (DEPLOYMENT_GUIDE §4). All test cases work the same way, with these differences:
