@@ -67,10 +67,9 @@ The test data follows the real flow: the script creates Accounts, and **UPWARD c
    ```
 
 **More variety:** `scripts/apex/create-random-test-data.apex` adds extra random Accounts on each run, 20 by default, and never changes existing ones.
-* **Who:** made-up small businesses with fictional names, such as `หจก. เฮงเฮงอะไหล่แอร์`, `ร้านป้าแดงข้าวมันไก่` or `Lucky Tiger Durian Export Co., Ltd.`.
 * **Where:** about half inside and half outside Bangkok. Addresses are obscure and messy: real sub-districts, districts and roads, with made-up house numbers, sois, `หมู่`, villages, shophouse buildings, market stalls and warehouses.
 * **How it's written:** random variations: abbreviations, Thai digits, floor and room, an English unit prefix, a missing postcode, commas between parts, or parts run together without spaces.
-* **Names** show the variations, for example `GEO-TEST R261118153000-07 ร้านป้าแดงข้าวมันไก่ [UPC,abbr,comma]`.
+* **Names** are just the run stamp and the variations, for example `GEO-TEST R261118153000-07 [UPC,abbr,comma]`.
 * **Settings** at the top: `RECORD_COUNT`, `INSIDE_BANGKOK_PERCENT`, `VARIATION_PERCENT`.
 
 There's no exact "right" pin for these, since the house numbers are made up. Judge the results by whether the suggestion lands in the right sub-district or district, and how far UPWARD's pin is from it. With OpenStreetMap, keep runs small (Nominatim allows 1 request per second).

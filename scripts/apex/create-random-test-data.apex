@@ -1,8 +1,7 @@
-// Creates EXTRA random test Accounts for the location lookup: made-up small businesses with obscure, messy
-// addresses, inside and outside Bangkok. It never changes existing records: every run adds new Accounts
-// named "GEO-TEST R<run stamp>-NN <company> [variations]".
+// Creates EXTRA random test Accounts for the location lookup, with obscure, messy business addresses inside and
+// outside Bangkok. It never changes existing records: every run adds new Accounts named
+// "GEO-TEST R<run stamp>-NN [variations]".
 //
-//  - Company names are generated from random parts (fictional; not real companies).
 //  - Addresses use REAL sub-districts, districts, provinces, postcodes and roads, with made-up house numbers,
 //    sois, villages, buildings, market stalls and warehouses. There is no exact "right" pin: this tests how
 //    the lookup copes with ordinary, obscure business addresses.
@@ -63,17 +62,6 @@ List<List<String>> OUTSIDE_BANGKOK = new List<List<String>>{
     new List<String>{ 'UPC', 'ตลาด', 'เมืองสุราษฎร์ธานี', 'สุราษฎร์ธานี', '84000', 'ตลาดใหม่|ชนเกษม' },
     new List<String>{ 'UPC', 'บ้านใหม่', 'ปากเกร็ด', 'นนทบุรี', '11120', 'แจ้งวัฒนะ' }
 };
-
-// ---- parts for made-up company names ----
-List<String> TH_FORMS  = new List<String>{ 'บริษัท', 'บจก.', 'หจก.', 'ห้างหุ้นส่วนจำกัด', 'ร้าน', 'โรงงาน', 'อู่' };
-List<String> TH_NAMES  = new List<String>{ 'มังกรทอง', 'ช้างเผือก', 'รุ่งเรืองกิจ', 'เจริญทรัพย์', 'สมหวัง', 'ลุงเปี๊ยก',
-    'ป้าแดง', 'ทวีโชค', 'เฮงเฮง', 'โชคดีมีชัย', 'บ้านสวน', 'ฟ้าใส', 'กิมเฮง', 'สองพี่น้อง', 'แสงทอง', 'ยิ้มสยาม' };
-List<String> TH_TRADES = new List<String>{ 'พลาสติก', 'เหล็กดัด', 'ข้าวมันไก่', 'ซ่อมรถ', 'ค้าวัสดุ', 'น้ำแข็ง',
-    'ทุเรียนส่งออก', 'อะไหล่แอร์', 'ผ้าม่าน', 'กล่องกระดาษ', 'ปุ๋ยชีวภาพ', 'สกรีนเสื้อ', 'ลูกชิ้นปลา', 'ขนส่ง', 'กระจกอลูมิเนียม' };
-List<String> EN_ADJ    = new List<String>{ 'Happy', 'Lucky', 'Siam', 'Mega', 'Super', 'Golden', 'Smile', 'Tiger', 'Lotus', 'Jumbo' };
-List<String> EN_NOUN   = new List<String>{ 'Durian', 'Screw', 'Noodle', 'Packaging', 'Aircon', 'Logistics', 'Garment',
-    'Rubber', 'Seafood', 'Spa', 'Bolt', 'Mango' };
-List<String> EN_FORMS  = new List<String>{ 'Co., Ltd.', 'Trading', 'Export Co., Ltd.', '(Thailand) Co., Ltd.', 'Supply' };
 
 // ---- parts for messy addresses ----
 List<String> SOI_NAMES   = new List<String>{ 'ร่วมใจ', 'สุขใจ', 'วัดใหม่', 'ประชาร่วมใจ', 'เทศบาล 3', 'ร่วมมิตร' };
@@ -170,16 +158,6 @@ for (Integer n = 1; n <= RECORD_COUNT; n++) {
         inside++;
     }
 
-    // ---- made-up company ----
-    String company;
-    if (chance(25)) {
-        company = oneOf(EN_ADJ) + ' ' + oneOf(EN_ADJ) + ' ' + oneOf(EN_NOUN) + ' ' + oneOf(EN_FORMS);
-    } else {
-        String form = oneOf(TH_FORMS);
-        company = form + (form.endsWith('.') ? ' ' : '') + oneOf(TH_NAMES) + oneOf(TH_TRADES)
-            + (form == 'บริษัท' ? ' จำกัด' : '');
-    }
-
     // ---- variations ----
     Boolean abbr    = chance(VARIATION_PERCENT);
     Boolean thai    = chance(VARIATION_PERCENT);
@@ -238,8 +216,7 @@ for (Integer n = 1; n <= RECORD_COUNT; n++) {
     if (nospace) { tags.add('nospace'); }
 
     Account a = new Account(
-        Name = ('GEO-TEST R' + stamp + '-' + String.valueOf(n).leftPad(2, '0') + ' ' + company
-            + ' [' + String.join(tags, ',') + ']').left(255),
+        Name = 'GEO-TEST R' + stamp + '-' + String.valueOf(n).leftPad(2, '0') + ' [' + String.join(tags, ',') + ']',
         Address__c = fullAddress,
         BillingStreet = street,
         BillingPostalCode = postcode);
