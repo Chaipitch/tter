@@ -2,13 +2,14 @@
 
 ## What this is
 
-The customer's single-field address (`Account.Address__c`) of `ogg__Location__c` records is sent to Google Maps. Google's coordinates are written to `Suggested_Latitude__c` / `Suggested_Longtitude__c`, and the distance in meters from UPWARD's pin to `Different_Distance__c`. It's built for **large volumes** (Batch Apex):
+The customer's single-field address (`Account.Address__c`) of `ogg__Location__c` records is sent to Google Maps. Google's coordinates are written to `Suggested_Latitude__c` / `Suggested_Longtitude__c`, and the distance in meters from UPWARD's pin to `Different_Distance__c`. Four ways it runs:
 
+* **Automatically when an oggLocation is created** (`AccountLocationTrigger`, after insert). It can be switched off with *Disable Lookup On Create* in the custom setting, for example for large data loads.
 * **List view button "Suggest Locations (Google)"**: the ticked records, or, with nothing ticked, **all records not processed yet (`isCoordsUpdated__c` unchecked)**. Processed records get `isCoordsUpdated__c` = true and are skipped by later automatic runs.
 * **Nightly schedule** (optional) over all records not processed yet.
 * **Record button "Suggest Location (Google)"**: one record, with the result in a toast.
 
-The search is tuned for Thai addresses: it removes room and floor details, expands abbreviations, and checks the postcode. Nothing runs on insert; an earlier version used a trigger, which has been removed.
+The list view button and the schedule handle **large volumes** (Batch Apex): existing records, records the trigger skipped, and re-checks. The search is tuned for Thai addresses: it removes room and floor details, expands abbreviations, and checks the postcode.
 
 How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) · Testing: [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)
 
@@ -17,7 +18,7 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
 | Item | Status |
 |---|---|
 | Code | On `main` in `Chaipitch/tter` (PRs #1–#12 merged) |
-| Sandbox `tterakit-sb` | **Everything deployed and validated** (six Apex test classes passing): record button, list view button + Batch Apex + schedule, `isCoordsUpdated__c` flag handling, OpenStreetMap option. The old trigger has been removed |
+| Sandbox `tterakit-sb` | Record button, list view button + Batch Apex + schedule, `isCoordsUpdated__c` handling and the OpenStreetMap option are **deployed and validated**. The **on-create trigger** (brought back alongside the buttons) **is not deployed yet** |
 | Provider | **OpenStreetMap** (temporary, no key) is configured in `tterakit-sb`. The probe script returned the Emporium building (`OSM_RANK_30`) with a postcode match |
 | Google API key | **Not available yet** |
 | Org setup after the last deploy | **Not confirmed:** permission set re-assigned, list view button added to the List View Button Layout, record button on the page layout, one-off flagging of records processed before `isCoordsUpdated__c` existed |
@@ -27,6 +28,7 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
 
 ## Next steps
 
+0. **Deploy the on-create trigger** to `tterakit-sb`: the same validate/deploy commands as before ([DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#3-deploy)), six test classes, no destructive flag. Then add *Disable Lookup On Create* = unchecked to the settings (`configure-openstreetmap.apex` or `configure-settings.apex` does it), and run TC-08.
 1. **Finish the org setup in `tterakit-sb`** ([DEPLOYMENT_GUIDE §3.4–3.5](docs/DEPLOYMENT_GUIDE.md#34-assign-the-permission-set)):
    * Re-assign the permission set. It covers both buttons and edit access to `isCoordsUpdated__c`:
 
@@ -55,7 +57,7 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
 5. **Accuracy and volume with Google:** run TC-03 (10–20 real customer addresses where UPWARD's pin is known to be wrong, checked in Google Maps), TC-07 and TC-14 (1,000+ records). Agree with the business what distance counts as wrong. The guide suggests over 50 m needs review and over 500 m is probably wrong. Records that were processed with OpenStreetMap are flagged and won't be picked up again automatically. To redo them with Google, untick their `isCoordsUpdated__c` (or tick them in a list view).
 6. **Bulk-fill existing records:** list view button with nothing ticked, or `scripts/apex/regeocode-existing.apex`.
 7. **Nightly run** (optional, Google only): `scripts/apex/schedule-nightly.apex` (TC-15).
-8. **Production:** deploy with the six test classes (no `--post-destructive-changes`: production never had the trigger), make sure `isCoordsUpdated__c` and the three target fields exist there, use Google as the provider with a production API key and quota, then steps 1, 4, 6 and 7.
+8. **Production:** deploy with the six test classes, make sure `isCoordsUpdated__c` and the three target fields exist there, and use Google as the provider with a production API key and quota. Then do steps 1, 4, 6 and 7. **Check *Disable Lookup On Create* before bulk-filling existing records**, so a data migration doesn't also start the trigger, and uncheck it afterwards.
 9. **Remove the OpenStreetMap option** once Google is in use (see limitation 6 below).
 
 ## Org facts the code relies on
@@ -82,7 +84,7 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
 | `force-app/main/default/remoteSiteSettings/` | `maps.googleapis.com`, `places.googleapis.com`, `nominatim.openstreetmap.org` (temporary) |
 | `force-app/main/default/permissionsets/AccountLocation_Geocoding` | Access to both buttons (Apex classes + Visualforce page) + read access to the three target fields |
 | `manifest/package.xml` | What gets deployed (target fields excluded on purpose) |
-| `manifest/destructiveChanges.xml` | Removes the old trigger + handler (only for orgs that had them, i.e. `tterakit-sb`) |
+| `force-app/main/default/triggers/AccountLocationTrigger.trigger` | After insert on `ogg__Location__c`: queues the lookup for new records (`AccountLocationTriggerHandler`) |
 | `scripts/apex/` | `configure-settings` (Google), `configure-openstreetmap` (temporary, no key), `test-geocode-address`, `regeocode-existing` (bulk: all not processed yet), `schedule-nightly` |
 
 Deploy and test commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#3-deploy) (six test classes: `AccountLocationGeocodingTest`, `AccountLocationGeocodeBatchTest`, `GoogleGeocodingServiceTest`, `GeoDistanceUtilTest`, `ThaiAddressNormalizerTest`, `OpenStreetMapGeocoderTest`).
@@ -91,6 +93,7 @@ Deploy and test commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#
 
 | Need | How |
 |---|---|
+| Stop only the automatic lookup on create (e.g. before a data load) | Check *Disable Lookup On Create* in Google Maps Settings; buttons and nightly run keep working. Apex: `AccountLocationTriggerHandler.bypass = true` |
 | Switch off immediately | Uncheck *Enabled* in Setup → Custom Settings → Google Maps Settings. Both buttons then say it's turned off, and a running batch stops calling out at its next chunk |
 | Stop a running bulk run | Setup → Apex Jobs → *Abort* on `AccountLocationGeocodeBatch` |
 | Stop / change the nightly run | Setup → Scheduled Jobs → *Suggest locations nightly* |
@@ -105,7 +108,7 @@ Deploy and test commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#
 
 ## Known limitations / possible follow-ups
 
-1. **Not real-time, and changed addresses aren't detected.** New records are filled in at the next nightly run (if scheduled) or when someone runs it. Once `isCoordsUpdated__c` is true, a record is only re-checked when ticked, sent through the record button, or its flag is unticked. If UPWARD changes an address on an existing location, nothing resets the flag. Records with no result (blank or unfindable address) stay `false` and are retried by every automatic run, at 1–3 requests each.
+1. **Changed addresses aren't detected.** The trigger runs on insert only. Once `isCoordsUpdated__c` is true, a record is only re-checked when ticked, sent through the record button, or its flag is unticked. If UPWARD changes an address on an existing location, nothing resets the flag. Records with no result (blank or unfindable address) stay `false` and are retried by every automatic bulk run, at 1–3 requests each. With OpenStreetMap, large inserts queue parallel jobs that break Nominatim's 1-request-per-second rule, so check *Disable Lookup On Create* first.
 2. **Address cleaning uses fixed rules.** New ways of writing room, floor or building can slip through. Add the pattern to `ROOM_PATTERN` / `FLOOR_PATTERN` / `BUILDING_PATTERN` in `ThaiAddressNormalizer`, with a case in `ThaiAddressNormalizerTest`. The patterns were checked in Java, which uses the same regex engine as Apex.
 3. **No audit fields.** The source used (Geocoding or Places), the query and the postcode match only go to the debug log. Fields for these would make reviewing easier.
 4. **40-second wait in the browser.** If the job queue is slow, the toast says *Still running*; the values appear after a refresh.
@@ -128,4 +131,5 @@ Deploy and test commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#
 | [#10](https://github.com/Chaipitch/tter/pull/10) | Bulk processing: Batch Apex, list view button, nightly schedule; shared `AccountLocationGeocodeProcessor` |
 | [#11](https://github.com/Chaipitch/tter/pull/11) | Fix: `OSM_MAX_RECORDS_PER_RUN` visible to the list view controller |
 | [#12](https://github.com/Chaipitch/tter/pull/12) | `isCoordsUpdated__c` set after processing; automatic runs only pick records where it's false |
-| next | HANDOFF status: everything deployed to `tterakit-sb` |
+| [#13](https://github.com/Chaipitch/tter/pull/13) – [#15](https://github.com/Chaipitch/tter/pull/15) | HANDOFF status; GEO-TEST data scripts with edge cases |
+| next | On-create trigger brought back (after insert), alongside the list view and record buttons; *Disable Lookup On Create* setting; `destructiveChanges.xml` removed |

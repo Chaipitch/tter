@@ -22,7 +22,7 @@ sf apex run test \
 
 | Test class | Covers |
 |---|---|
-| `AccountLocationGeocodingTest` | Button Apex (`enqueue` → job → `getStatus`) fills suggested lat/lng + distance; an insert alone does nothing; setting disabled and wrong record type report an error; blank address; Google error leaves the record unchanged; no original coordinates → no distance; `ogg__RawAddress__c` fallback; back-fill job with 60 records (30 per execution). Uses the Thai Emporium address. |
+| `AccountLocationGeocodingTest` | On-create trigger: an insert is looked up automatically and flagged; records inserted already flagged are skipped; *Disable Lookup On Create* skips the trigger but the buttons still work; a 60-record insert queues one job (30 per execution). Record button Apex (`enqueue` → job → `getStatus`) fills suggested lat/lng + distance; setting disabled and wrong record type report an error; blank address; Google error leaves the record unchanged; no original coordinates → no distance; `ogg__RawAddress__c` fallback. Uses the Thai Emporium address. |
 | `GoogleGeocodingServiceTest` | Thai search order (address without room/floor → street level → Places); postcode check; best-score choice; country/region/language params; Places failure keeps the Geocoding result; REQUEST_DENIED and HTTP 500 errors; blank address; settings defaults/validation |
 | `ThaiAddressNormalizerTest` | Room/floor removal (`ห้องเลขที่ 91,96`, `ชั้นที่ 9`, `Room`, `12th Floor`); building removal; Thai digits; abbreviations (`ถ.`, `ซ.`, `ต.`, `อ.`, `จ.`, `ม.`, `กทม.`, `กรุงเทพฯ`); postcode extraction |
 | `OpenStreetMapGeocoderTest` | Provider switch (`OpenStreetMap`/`OSM`/blank/`Google`); enabled without an API key; batch capped at 10; Nominatim request (`format=jsonv2`, `countrycodes`, `accept-language`, User-Agent, no key); area result → street-level query; best result when only area results; empty result; HTTP 429; button end to end with OpenStreetMap; Google and Places never called |
@@ -45,7 +45,7 @@ sf apex run test \
 
 ### Test data
 
-`scripts/apex/create-test-data.apex` creates 18 Accounts named `GEO-TEST …`, each with an oggLocation and a deliberate "UPWARD pin". It's safe to re-run: existing cases are skipped. They cover the main cases: building + room + floor, a correct pin, a wrong district, abbreviations, English units, Thai digits, upcountry with no pin, district only, nonsense, and a blank address (01–10). Cases 11–18 are edge cases, described in TC-18 and TC-19. Each case's expected location is in the script's comments. Remove them with `scripts/apex/delete-test-data.apex`.
+`scripts/apex/create-test-data.apex` creates 18 Accounts named `GEO-TEST …`, each with an oggLocation and a deliberate "UPWARD pin". It's safe to re-run: existing cases are skipped. They cover the main cases: building + room + floor, a correct pin, a wrong district, abbreviations, English units, Thai digits, upcountry with no pin, district only, nonsense, and a blank address (01–10). Cases 11–18 are edge cases, described in TC-18 and TC-19. Each case's expected location is in the script's comments. Remove them with `scripts/apex/delete-test-data.apex`. The on-create trigger looks the new records up automatically right away. To test the buttons with them instead, check *Disable Lookup On Create* in Google Maps Settings before running the script.
 
 ```bash
 sf apex run --file scripts/apex/create-test-data.apex --target-org tterakit-sb
@@ -73,7 +73,7 @@ Before searching, Thai digits (๐–๙) are converted, and abbreviations (`ถ
 
 ### Test cases
 
-Create each Account the way users normally do, so that UPWARD creates the oggLocation record. TC-01 – TC-11 use the **record button**: open the oggLocation record and click **Suggest Location (Google)**. Within a few seconds a toast shows the result and the record refreshes. TC-12 – TC-17 test **bulk processing**; TC-18 – TC-19 are edge cases with the list view button and the schedule.
+Create each Account the way users normally do, so that UPWARD creates the oggLocation record. **New records are looked up automatically by the trigger** (TC-08). To test the buttons on fresh records, check *Disable Lookup On Create* first, then TC-01 – TC-11 use the **record button**: open the oggLocation record and click **Suggest Location (Google)**. Within a few seconds a toast shows the result and the record refreshes. TC-12 – TC-17 test **bulk processing**; TC-18 – TC-19 are edge cases.
 
 | # | Scenario | Steps | Expected result |
 |---|---|---|---|
@@ -84,7 +84,7 @@ Create each Account the way users normally do, so that UPWARD creates the oggLoc
 | TC-05 | Blank address | oggLocation whose Account has an empty `Address__c` | Toast *No suggestion*. No callout; fields stay blank. |
 | TC-06 | Feature switched off | Uncheck *Enabled* in the custom setting and click the button | Error toast *Google Maps lookup is turned off…*; no job in Apex Jobs. Re-enable after the test. |
 | TC-07 | Invalid API key | Put a wrong key in the setting and click the button | Toast *No suggestion*; record unchanged. The log shows `Geocoding API status REQUEST_DENIED`. Restore the key. |
-| TC-08 | No automatic run | Create a new Account / oggLocation and don't click the button | Suggested fields stay blank. Nothing appears in Apex Jobs. |
+| TC-08 | Automatic lookup on create | Create a new Account with a Thai address so UPWARD creates the oggLocation (or run the test-data script). Don't click anything | Within a few seconds to a minute, the new oggLocation has suggested values and `isCoordsUpdated__c` checked; **Setup → Apex Jobs** shows an `AccountLocationGeocodeQueueable`. Then check *Disable Lookup On Create*, create another one: it stays empty until the list view button or the nightly run processes it. Uncheck the setting afterwards. |
 | TC-09 | Click again after UPWARD changes its pin | Change the original Lat/Lng (or wait for UPWARD to update it), click the button again | Suggested values and Different Distance are refreshed. If you set the original Lat/Lng to the suggested values first, the distance is 0. |
 | TC-10 | Double click | Click the button twice quickly | Only one lookup runs; one result toast. |
 | TC-11 | Non-admin user | Repeat TC-01 as a standard sales user with the permission set | Same result. Without the permission set, the button shows an error. |
@@ -138,6 +138,7 @@ The output first shows the query variants built from the Thai address (`withoutU
 
 | Symptom | Check |
 |---|---|
+| New records aren't looked up automatically | *Disable Lookup On Create* is checked, the feature is off, or the record was inserted with `isCoordsUpdated__c` already checked. Also check the debug log for `no background job slot left` (UPWARD inserting from async code). The list view button or nightly run will catch them up. |
 | Button missing | List view button: add it in *List View Button Layout*. Record button: add it to the page layout / Lightning page. See DEPLOYMENT_GUIDE 3.5. |
 | List view button page: *Insufficient privileges* | Assign the `AccountLocation_Geocoding` permission set (it grants the page and its controller). |
 | Batch Completed but some records still empty | Those addresses are blank or weren't found (their `isCoordsUpdated__c` stays unchecked, so they're retried next run); check the debug log of the user who started it. With OpenStreetMap, only 200 records are processed per run. |

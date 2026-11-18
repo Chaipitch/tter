@@ -18,6 +18,9 @@ private class AccountLocationGeocodeBatchTest {
             API_Key__c = 'TEST_KEY',
             Batch_Size__c = 30);
         GoogleMapsSettings.cached = null;
+        // Tests below exercise the buttons / batch: keep the on-create trigger out of the way.
+        // Trigger tests switch it back on explicitly.
+        AccountLocationTriggerHandler.bypass = true;
     }
 
     private static GoogleMapsCalloutMock mockGoogle() {

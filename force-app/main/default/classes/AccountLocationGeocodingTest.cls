@@ -1,5 +1,6 @@
 /**
- * End-to-end tests: quick action Apex (AccountLocationGeocodeAction) -> AccountLocationGeocodeQueueable.
+ * End-to-end tests: on-create trigger (AccountLocationTrigger) and record button (AccountLocationGeocodeAction)
+ * -> AccountLocationGeocodeQueueable -> AccountLocationGeocodeProcessor.
  *
  * Required fields on Account / ogg__Location__c are filled by TestRecordFactory. If a validation rule
  * needs a specific value, add it to the values map in newAccount() / newLocation().
@@ -26,6 +27,9 @@ private class AccountLocationGeocodingTest {
             Batch_Size__c = 30,
             Use_Places_Fallback__c = false);
         GoogleMapsSettings.cached = null;
+        // Tests below exercise the buttons / batch: keep the on-create trigger out of the way.
+        // Trigger tests switch it back on explicitly.
+        AccountLocationTriggerHandler.bypass = true;
     }
 
     private static GoogleMapsCalloutMock mockPreciseResult() {
@@ -110,9 +114,12 @@ private class AccountLocationGeocodingTest {
         Assert.areEqual(rec.Different_Distance__c, status.get('distance'));
     }
 
+    // ------------------------------------------------------------------ on-create trigger
+
     @IsTest
-    static void insertAloneDoesNothing() {
+    static void insertTriggersLookup() {
         configure(true);
+        AccountLocationTriggerHandler.bypass = false;
         GoogleMapsCalloutMock mock = mockPreciseResult();
         Account acc = newAccount(THAI_ADDRESS);
 
@@ -121,8 +128,74 @@ private class AccountLocationGeocodingTest {
         insert loc;
         Test.stopTest();
 
-        Assert.isNull(reload(loc.Id).Suggested_Latitude__c, 'No trigger: only the button starts a lookup');
+        ogg__Location__c rec = reload(loc.Id);
+        Assert.areEqual(SUGGESTED_LAT, rec.Suggested_Latitude__c, 'New records are looked up automatically');
+        Assert.areEqual(SUGGESTED_LNG, rec.Suggested_Longtitude__c);
+        Assert.areEqual(expectedDistance(rec), rec.Different_Distance__c);
+        Assert.isTrue(rec.isCoordsUpdated__c);
+        Assert.areEqual(1, mock.requests.size());
+    }
+
+    @IsTest
+    static void insertSkipsRecordsAlreadyFlagged() {
+        configure(true);
+        AccountLocationTriggerHandler.bypass = false;
+        GoogleMapsCalloutMock mock = mockPreciseResult();
+        Account acc = newAccount(THAI_ADDRESS);
+
+        Test.startTest();
+        ogg__Location__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
+        loc.isCoordsUpdated__c = true;
+        insert loc;
+        Test.stopTest();
+
+        Assert.isNull(reload(loc.Id).Suggested_Latitude__c);
         Assert.areEqual(0, mock.requests.size());
+    }
+
+    @IsTest
+    static void disableLookupOnCreateSkipsTrigger() {
+        insert new Google_Maps_Settings__c(
+            SetupOwnerId = UserInfo.getOrganizationId(),
+            Enabled__c = true,
+            API_Key__c = 'TEST_KEY',
+            Disable_Lookup_On_Create__c = true);
+        GoogleMapsSettings.cached = null;
+        GoogleMapsCalloutMock mock = mockPreciseResult();
+        Account acc = newAccount(THAI_ADDRESS);
+
+        Test.startTest();
+        ogg__Location__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
+        insert loc;
+        Test.stopTest();
+
+        ogg__Location__c rec = reload(loc.Id);
+        Assert.isNull(rec.Suggested_Latitude__c);
+        Assert.isFalse(rec.isCoordsUpdated__c, 'Left for the list view button / nightly run');
+        Assert.areEqual(0, mock.requests.size());
+        Assert.isTrue(GoogleMapsSettings.isEnabled(), 'The buttons still work');
+        Assert.isFalse(GoogleMapsSettings.lookupOnCreate());
+    }
+
+    @IsTest
+    static void bulkInsertQueuesOneJob() {
+        configure(true);   // Batch_Size__c = 30
+        AccountLocationTriggerHandler.bypass = false;
+        GoogleMapsCalloutMock mock = mockPreciseResult();
+        Account acc = newAccount(THAI_ADDRESS);
+        List<ogg__Location__c> locs = new List<ogg__Location__c>();
+        for (Integer i = 0; i < 60; i++) {
+            locs.add(newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG));
+        }
+
+        Test.startTest();
+        insert locs;
+        Test.stopTest();
+
+        Integer populated = [SELECT COUNT() FROM ogg__Location__c WHERE Id IN :locs AND isCoordsUpdated__c = true];
+        // The other 30 are chained to a new job in real orgs; chaining is skipped in tests.
+        Assert.areEqual(30, populated);
+        Assert.areEqual(30, mock.requests.size());
     }
 
     @IsTest

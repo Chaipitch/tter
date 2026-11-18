@@ -1,5 +1,6 @@
 /**
- * Async job started by the single-record button (AccountLocationGeocodeAction): geocodes the given
+ * Async job started by the on-create trigger (AccountLocationTriggerHandler) and by the single-record button
+ * (AccountLocationGeocodeAction): geocodes the given
  * ogg__Location__c records with AccountLocationGeocodeProcessor. Processes GoogleMapsSettings.batchSize()
  * records per execution and chains itself for the rest. For large volumes use AccountLocationGeocodeBatch.
  */

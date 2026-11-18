@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Disable_Lookup_On_Create__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>When checked, new oggLocation records are NOT looked up automatically by AccountLocationTrigger (e.g. during a large data load). The list view button, record button and nightly run still work and pick these records up later.</description>
+    <externalId>false</externalId>
+    <label>Disable Lookup On Create</label>
+    <type>Checkbox</type>
+</CustomField>
