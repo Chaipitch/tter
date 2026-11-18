@@ -1,60 +1,86 @@
-// Creates EXTRA random test Accounts for the location lookup, inside and outside Bangkok. It never changes
-// existing records: every run adds new Accounts named "GEO-TEST R<run stamp>-NN <BKK|UPC> <place> [variations]".
+// Creates EXTRA random test Accounts for the location lookup: made-up small businesses with obscure, messy
+// addresses, inside and outside Bangkok. It never changes existing records: every run adds new Accounts
+// named "GEO-TEST R<run stamp>-NN <company> [variations]".
 //
-//  - Each Account gets a real, well-known address (13 in Bangkok, 13 upcountry / Bangkok metro provinces), so
-//    the results can be checked in Google Maps, written in a randomly varied way:
-//        abbr   abbreviations (ถ. ม. ต. อ. จ. กทม. / กรุงเทพฯ)      thai   Thai digits
-//        floor  floor + room added ("ชั้น 12 ห้อง 1203")             eng    English "Unit 5A, 12th Floor," prefix
-//        nopc   postcode left out
+//  - Company names are generated from random parts (fictional; not real companies).
+//  - Addresses use REAL sub-districts, districts, provinces, postcodes and roads, with made-up house numbers,
+//    sois, villages, buildings, market stalls and warehouses. There is no exact "right" pin: this tests how
+//    the lookup copes with ordinary, obscure business addresses.
+//  - Random variations (shown in the name):
+//        abbr     abbreviations (ถ. ซ. ม. ต. อ. จ. กทม. / กรุงเทพฯ)   thai     Thai digits
+//        floor    floor + room                                         eng      English "Unit ..., ...th Floor," prefix
+//        nopc     postcode left out                                    comma    parts separated by commas
+//        nospace  parts run together without spaces
 //  - The address goes into both Address__c (used by the lookup) and the Billing Address (used by UPWARD to
-//    create the oggLocation), like create-test-data.apex. The oggLocations are left to UPWARD; the on-create
-//    trigger then looks them up.
-//  - Required Account fields are filled automatically (see create-test-data.apex); set specific values in
-//    ACCOUNT_VALUES if a validation rule needs them.
+//    create the oggLocation). The oggLocations are left to UPWARD; the on-create trigger then looks them up.
+//  - Required Account fields are filled automatically; set specific values in ACCOUNT_VALUES if needed.
 //  - Remove them (with all other GEO-TEST data) with scripts/apex/delete-test-data.apex.
 //
 // Run:  sf apex run --file scripts/apex/create-random-test-data.apex --target-org tterakit-sb
 
-Integer RECORD_COUNT          = 20;    // how many Accounts to create in this run
+Integer RECORD_COUNT           = 20;   // how many Accounts to create in this run
 Integer INSIDE_BANGKOK_PERCENT = 50;   // chance that an Account is in Bangkok (the rest: outside Bangkok)
-Integer VARIATION_PERCENT      = 30;   // chance for each variation (abbr / thai / floor / eng / nopc)
+Integer VARIATION_PERCENT      = 30;   // chance for each variation
 
 Map<String, Object> ACCOUNT_VALUES = new Map<String, Object>{
     // 'Tax_ID__c' => '0105556000000',
     // 'Customer_Type__c' => 'Corporate'
 };
 
-// { region, label, house no, moo, road (without ถนน), subdistrict, district, province, postcode }
+// { region, subdistrict, district, province, postcode, roads (| separated, without ถนน) }
 List<List<String>> BANGKOK = new List<List<String>>{
-    new List<String>{ 'BKK', 'CentralWorld', '999/9', '', 'พระรามที่ 1', 'ปทุมวัน', 'ปทุมวัน', 'กรุงเทพมหานคร', '10330' },
-    new List<String>{ 'BKK', 'Siam Paragon', '991', '', 'พระรามที่ 1', 'ปทุมวัน', 'ปทุมวัน', 'กรุงเทพมหานคร', '10330' },
-    new List<String>{ 'BKK', 'Emporium', '622', '', 'สุขุมวิท', 'คลองตัน', 'คลองเตย', 'กรุงเทพมหานคร', '10110' },
-    new List<String>{ 'BKK', 'Silom Complex', '191', '', 'สีลม', 'สีลม', 'บางรัก', 'กรุงเทพมหานคร', '10500' },
-    new List<String>{ 'BKK', 'Central Ladprao', '1693', '', 'พหลโยธิน', 'จตุจักร', 'จตุจักร', 'กรุงเทพมหานคร', '10900' },
-    new List<String>{ 'BKK', 'Central Chidlom', '1027', '', 'เพลินจิต', 'ลุมพินี', 'ปทุมวัน', 'กรุงเทพมหานคร', '10330' },
-    new List<String>{ 'BKK', 'ICONSIAM', '299', '', 'เจริญนคร', 'คลองต้นไทร', 'คลองสาน', 'กรุงเทพมหานคร', '10600' },
-    new List<String>{ 'BKK', 'Grand Palace', '', '', 'หน้าพระลาน', 'พระบรมมหาราชวัง', 'พระนคร', 'กรุงเทพมหานคร', '10200' },
-    new List<String>{ 'BKK', 'Chatuchak Market', '587/10', '', 'กำแพงเพชร 2', 'จตุจักร', 'จตุจักร', 'กรุงเทพมหานคร', '10900' },
-    new List<String>{ 'BKK', 'Seacon Square', '55', '', 'ศรีนครินทร์', 'หนองบอน', 'ประเวศ', 'กรุงเทพมหานคร', '10250' },
-    new List<String>{ 'BKK', 'Terminal 21', '88', '', 'สุขุมวิท', 'คลองเตยเหนือ', 'วัฒนา', 'กรุงเทพมหานคร', '10110' },
-    new List<String>{ 'BKK', 'Don Mueang Airport', '222', '', 'วิภาวดีรังสิต', 'สนามบิน', 'ดอนเมือง', 'กรุงเทพมหานคร', '10210' },
-    new List<String>{ 'BKK', 'Fashion Island', '587', '', 'รามอินทรา', 'คันนายาว', 'คันนายาว', 'กรุงเทพมหานคร', '10230' }
+    new List<String>{ 'BKK', 'บางนาเหนือ', 'บางนา', 'กรุงเทพมหานคร', '10260', 'สุขุมวิท|บางนา-ตราด' },
+    new List<String>{ 'BKK', 'บางซื่อ', 'บางซื่อ', 'กรุงเทพมหานคร', '10800', 'ประชาราษฎร์สาย 2|เตชะวณิช' },
+    new List<String>{ 'BKK', 'คลองจั่น', 'บางกะปิ', 'กรุงเทพมหานคร', '10240', 'นวมินทร์|เสรีไทย|ลาดพร้าว' },
+    new List<String>{ 'BKK', 'หนองแขม', 'หนองแขม', 'กรุงเทพมหานคร', '10160', 'เพชรเกษม' },
+    new List<String>{ 'BKK', 'ลาดกระบัง', 'ลาดกระบัง', 'กรุงเทพมหานคร', '10520', 'ฉลองกรุง|ลาดกระบัง' },
+    new List<String>{ 'BKK', 'มีนบุรี', 'มีนบุรี', 'กรุงเทพมหานคร', '10510', 'สีหบุรานุกิจ|รามอินทรา' },
+    new List<String>{ 'BKK', 'บางพลัด', 'บางพลัด', 'กรุงเทพมหานคร', '10700', 'จรัญสนิทวงศ์' },
+    new List<String>{ 'BKK', 'สัมพันธวงศ์', 'สัมพันธวงศ์', 'กรุงเทพมหานคร', '10100', 'เยาวราช|ทรงวาด' },
+    new List<String>{ 'BKK', 'วังทองหลาง', 'วังทองหลาง', 'กรุงเทพมหานคร', '10310', 'ลาดพร้าว' },
+    new List<String>{ 'BKK', 'ท่าข้าม', 'บางขุนเทียน', 'กรุงเทพมหานคร', '10150', 'พระรามที่ 2' },
+    new List<String>{ 'BKK', 'หลักสอง', 'บางแค', 'กรุงเทพมหานคร', '10160', 'เพชรเกษม' },
+    new List<String>{ 'BKK', 'ทุ่งวัดดอน', 'สาทร', 'กรุงเทพมหานคร', '10120', 'เจริญราษฎร์|จันทน์' },
+    new List<String>{ 'BKK', 'สามเสนนอก', 'ห้วยขวาง', 'กรุงเทพมหานคร', '10310', 'ประชาราษฎร์บำเพ็ญ|สุทธิสารวินิจฉัย' }
 };
 List<List<String>> OUTSIDE_BANGKOK = new List<List<String>>{
-    new List<String>{ 'UPC', 'Central Festival Chiang Mai', '99/3', '4', 'ซุปเปอร์ไฮเวย์เชียงใหม่-ลำปาง', 'ฟ้าฮ่าม', 'เมืองเชียงใหม่', 'เชียงใหม่', '50000' },
-    new List<String>{ 'UPC', 'MAYA Chiang Mai', '55', '', 'ห้วยแก้ว', 'ช้างเผือก', 'เมืองเชียงใหม่', 'เชียงใหม่', '50300' },
-    new List<String>{ 'UPC', 'Central Phuket', '74', '5', 'วิชิตสงคราม', 'วิชิต', 'เมืองภูเก็ต', 'ภูเก็ต', '83000' },
-    new List<String>{ 'UPC', 'Central Pattaya', '333/99', '9', 'พัทยาสาย 2', 'หนองปรือ', 'บางละมุง', 'ชลบุรี', '20150' },
-    new List<String>{ 'UPC', 'Central Khon Kaen', '99', '', 'ศรีจันทร์', 'ในเมือง', 'เมืองขอนแก่น', 'ขอนแก่น', '40000' },
-    new List<String>{ 'UPC', 'Central Hat Yai', '1518', '', 'กาญจนวณิชย์', 'หาดใหญ่', 'หาดใหญ่', 'สงขลา', '90110' },
-    new List<String>{ 'UPC', 'Mega Bangna', '39', '6', 'บางนา-ตราด', 'บางแก้ว', 'บางพลี', 'สมุทรปราการ', '10540' },
-    new List<String>{ 'UPC', 'Future Park Rangsit', '94', '', 'พหลโยธิน', 'ประชาธิปัตย์', 'ธัญบุรี', 'ปทุมธานี', '12130' },
-    new List<String>{ 'UPC', 'Central Westgate', '199', '6', 'กาญจนาภิเษก', 'เสาธงหิน', 'บางใหญ่', 'นนทบุรี', '11140' },
-    new List<String>{ 'UPC', 'Terminal 21 Korat', '99', '', 'มิตรภาพ-หนองคาย', 'ในเมือง', 'เมืองนครราชสีมา', 'นครราชสีมา', '30000' },
-    new List<String>{ 'UPC', 'Wat Mahathat Ayutthaya', '', '', 'นเรศวร', 'ท่าวาสุกรี', 'พระนครศรีอยุธยา', 'พระนครศรีอยุธยา', '13000' },
-    new List<String>{ 'UPC', 'Hua Hin Station', '', '', 'ดำเนินเกษม', 'หัวหิน', 'หัวหิน', 'ประจวบคีรีขันธ์', '77110' },
-    new List<String>{ 'UPC', 'Central Udon Thani', '277/1', '', 'ประจักษ์ศิลปาคม', 'หมากแข้ง', 'เมืองอุดรธานี', 'อุดรธานี', '41000' }
+    new List<String>{ 'UPC', 'บางปูใหม่', 'เมืองสมุทรปราการ', 'สมุทรปราการ', '10280', 'สุขุมวิท' },
+    new List<String>{ 'UPC', 'บ้านเลน', 'บางปะอิน', 'พระนครศรีอยุธยา', '13160', 'อุดมสรยุทธ์' },
+    new List<String>{ 'UPC', 'คลองหนึ่ง', 'คลองหลวง', 'ปทุมธานี', '12120', 'พหลโยธิน' },
+    new List<String>{ 'UPC', 'บ่อวิน', 'ศรีราชา', 'ชลบุรี', '20230', 'ทางหลวงหมายเลข 331' },
+    new List<String>{ 'UPC', 'มาบตาพุด', 'เมืองระยอง', 'ระยอง', '21150', 'สุขุมวิท' },
+    new List<String>{ 'UPC', 'อ้อมน้อย', 'กระทุ่มแบน', 'สมุทรสาคร', '74130', 'เพชรเกษม' },
+    new List<String>{ 'UPC', 'ท่าทราย', 'เมืองสมุทรสาคร', 'สมุทรสาคร', '74000', 'เศรษฐกิจ 1' },
+    new List<String>{ 'UPC', 'หนองหาร', 'สันทราย', 'เชียงใหม่', '50290', 'เชียงใหม่-แม่โจ้' },
+    new List<String>{ 'UPC', 'สันกำแพง', 'สันกำแพง', 'เชียงใหม่', '50130', 'เชียงใหม่-สันกำแพง' },
+    new List<String>{ 'UPC', 'ในเมือง', 'เมืองขอนแก่น', 'ขอนแก่น', '40000', 'มิตรภาพ|หน้าเมือง' },
+    new List<String>{ 'UPC', 'หาดใหญ่', 'หาดใหญ่', 'สงขลา', '90110', 'เพชรเกษม|นิพัทธ์อุทิศ 3' },
+    new List<String>{ 'UPC', 'กะทู้', 'กะทู้', 'ภูเก็ต', '83120', 'วิชิตสงคราม' },
+    new List<String>{ 'UPC', 'หนองปรือ', 'บางละมุง', 'ชลบุรี', '20150', 'สุขุมวิท|เทพประสิทธิ์' },
+    new List<String>{ 'UPC', 'ในเมือง', 'เมืองนครราชสีมา', 'นครราชสีมา', '30000', 'มิตรภาพ|จอมพล' },
+    new List<String>{ 'UPC', 'หมากแข้ง', 'เมืองอุดรธานี', 'อุดรธานี', '41000', 'โพศรี|อุดรดุษฎี' },
+    new List<String>{ 'UPC', 'เวียง', 'เมืองเชียงราย', 'เชียงราย', '57000', 'พหลโยธิน|บรรพปราการ' },
+    new List<String>{ 'UPC', 'ตลาด', 'เมืองสุราษฎร์ธานี', 'สุราษฎร์ธานี', '84000', 'ตลาดใหม่|ชนเกษม' },
+    new List<String>{ 'UPC', 'บ้านใหม่', 'ปากเกร็ด', 'นนทบุรี', '11120', 'แจ้งวัฒนะ' }
 };
+
+// ---- parts for made-up company names ----
+List<String> TH_FORMS  = new List<String>{ 'บริษัท', 'บจก.', 'หจก.', 'ห้างหุ้นส่วนจำกัด', 'ร้าน', 'โรงงาน', 'อู่' };
+List<String> TH_NAMES  = new List<String>{ 'มังกรทอง', 'ช้างเผือก', 'รุ่งเรืองกิจ', 'เจริญทรัพย์', 'สมหวัง', 'ลุงเปี๊ยก',
+    'ป้าแดง', 'ทวีโชค', 'เฮงเฮง', 'โชคดีมีชัย', 'บ้านสวน', 'ฟ้าใส', 'กิมเฮง', 'สองพี่น้อง', 'แสงทอง', 'ยิ้มสยาม' };
+List<String> TH_TRADES = new List<String>{ 'พลาสติก', 'เหล็กดัด', 'ข้าวมันไก่', 'ซ่อมรถ', 'ค้าวัสดุ', 'น้ำแข็ง',
+    'ทุเรียนส่งออก', 'อะไหล่แอร์', 'ผ้าม่าน', 'กล่องกระดาษ', 'ปุ๋ยชีวภาพ', 'สกรีนเสื้อ', 'ลูกชิ้นปลา', 'ขนส่ง', 'กระจกอลูมิเนียม' };
+List<String> EN_ADJ    = new List<String>{ 'Happy', 'Lucky', 'Siam', 'Mega', 'Super', 'Golden', 'Smile', 'Tiger', 'Lotus', 'Jumbo' };
+List<String> EN_NOUN   = new List<String>{ 'Durian', 'Screw', 'Noodle', 'Packaging', 'Aircon', 'Logistics', 'Garment',
+    'Rubber', 'Seafood', 'Spa', 'Bolt', 'Mango' };
+List<String> EN_FORMS  = new List<String>{ 'Co., Ltd.', 'Trading', 'Export Co., Ltd.', '(Thailand) Co., Ltd.', 'Supply' };
+
+// ---- parts for messy addresses ----
+List<String> SOI_NAMES   = new List<String>{ 'ร่วมใจ', 'สุขใจ', 'วัดใหม่', 'ประชาร่วมใจ', 'เทศบาล 3', 'ร่วมมิตร' };
+List<String> VILLAGES    = new List<String>{ 'หมู่บ้านพฤกษาวิลล์ 12', 'หมู่บ้านทวีสุข', 'หมู่บ้านชัยพฤกษ์', 'หมู่บ้านบ้านสวนเกษตร',
+    'หมู่บ้านเอื้ออาทร', 'หมู่บ้านสินทรัพย์นคร' };
+List<String> BUILDINGS   = new List<String>{ 'อาคารสินธรพลาซ่า', 'อาคารเจริญกิจ', 'อาคารพาณิชย์โชคชัย', 'ตึกแถวสามัคคี' };
+List<String> MARKETS     = new List<String>{ 'ตลาดสดเทศบาล', 'ตลาดนัดสี่แยก', 'ตลาดเช้าบ้านใหม่' };
 
 // Fills database-required fields that are still empty (same idea as TestRecordFactory, for anonymous Apex)
 void fillRequired(SObject rec, Map<Schema.SObjectType, Id> lookupCache) {
@@ -106,6 +132,10 @@ Integer pick(Integer size) {
     return Math.mod(Math.abs(Crypto.getRandomInteger()), size);
 }
 
+String oneOf(List<String> values) {
+    return values[pick(values.size())];
+}
+
 String thaiDigits(String s) {
     if (s == null) {
         return null;
@@ -117,14 +147,14 @@ String thaiDigits(String s) {
     return s;
 }
 
-String joinParts(List<String> parts) {
+String joinParts(List<String> parts, String separator) {
     List<String> kept = new List<String>();
     for (String p : parts) {
         if (String.isNotBlank(p)) {
             kept.add(p.trim());
         }
     }
-    return String.join(kept, ' ');
+    return String.join(kept, separator);
 }
 
 Map<Schema.SObjectType, Id> lookupCache = new Map<Schema.SObjectType, Id>();
@@ -135,54 +165,86 @@ Integer inside = 0;
 
 for (Integer n = 1; n <= RECORD_COUNT; n++) {
     Boolean bkk = chance(INSIDE_BANGKOK_PERCENT);
-    List<String> p = bkk ? BANGKOK[pick(BANGKOK.size())] : OUTSIDE_BANGKOK[pick(OUTSIDE_BANGKOK.size())];
+    List<String> area = bkk ? BANGKOK[pick(BANGKOK.size())] : OUTSIDE_BANGKOK[pick(OUTSIDE_BANGKOK.size())];
     if (bkk) {
         inside++;
     }
 
-    Boolean abbr  = chance(VARIATION_PERCENT);
-    Boolean thai  = chance(VARIATION_PERCENT);
-    Boolean floor = chance(VARIATION_PERCENT);
-    Boolean eng   = !floor && chance(VARIATION_PERCENT / 2);
-    Boolean nopc  = chance(VARIATION_PERCENT / 2);
+    // ---- made-up company ----
+    String company;
+    if (chance(25)) {
+        company = oneOf(EN_ADJ) + ' ' + oneOf(EN_ADJ) + ' ' + oneOf(EN_NOUN) + ' ' + oneOf(EN_FORMS);
+    } else {
+        String form = oneOf(TH_FORMS);
+        company = form + (form.endsWith('.') ? ' ' : '') + oneOf(TH_NAMES) + oneOf(TH_TRADES)
+            + (form == 'บริษัท' ? ' จำกัด' : '');
+    }
 
-    Integer floorNo = 2 + pick(30);
-    String room = String.valueOf(floorNo) + String.valueOf(1 + pick(9)).leftPad(2, '0');
+    // ---- variations ----
+    Boolean abbr    = chance(VARIATION_PERCENT);
+    Boolean thai    = chance(VARIATION_PERCENT);
+    Boolean floor   = chance(VARIATION_PERCENT);
+    Boolean eng     = !floor && chance(VARIATION_PERCENT / 2);
+    Boolean nopc    = chance(VARIATION_PERCENT / 2);
+    Boolean comma   = chance(VARIATION_PERCENT / 2);
+    Boolean nospace = !comma && chance(VARIATION_PERCENT / 3);
 
-    String houseNo = p[2];
-    String moo = String.isBlank(p[3]) ? null : (abbr ? 'ม.' : 'หมู่ ') + p[3];
+    // ---- messy address ----
+    Integer floorNo = 2 + pick(15);
+    String room = String.valueOf(floorNo) + String.valueOf(1 + pick(20)).leftPad(2, '0');
+    String houseNo = String.valueOf(1 + pick(999)) + (chance(40) ? '/' + String.valueOf(1 + pick(150)) : '');
+    String moo = (!bkk && chance(60)) ? (abbr ? 'ม.' : 'หมู่ ') + String.valueOf(1 + pick(12)) : null;
+    String village = chance(25) ? oneOf(VILLAGES) : null;
+    String place = null;
+    Integer kind = pick(10);
+    if (kind == 0) {
+        place = oneOf(MARKETS) + ' แผงที่ ' + String.valueOf(1 + pick(200));
+    } else if (kind == 1 && !bkk) {
+        place = 'โกดัง ' + String.valueOf(1 + pick(30));
+    } else if (kind == 2) {
+        place = oneOf(BUILDINGS);
+    }
     String noise = floor ? 'ชั้น ' + floorNo + ' ห้อง ' + room : null;
     String prefix = eng ? 'Unit ' + room + ', ' + floorNo + 'th Floor,' : null;
-    String road = (abbr ? 'ถ.' : 'ถนน') + p[4];
-    String sub  = bkk ? 'แขวง' + p[5] : (abbr ? 'ต.' : 'ตำบล') + p[5];
-    String dist = bkk ? 'เขต' + p[6] : (abbr ? 'อ.' : 'อำเภอ') + p[6];
+    List<String> roads = area[5].split('\\|');
+    String roadName = roads[pick(roads.size())];
+    String soi = null;
+    if (chance(50)) {
+        soi = (abbr ? 'ซ.' : 'ซอย') + (chance(50) ? roadName + ' ' + String.valueOf(1 + pick(120)) : oneOf(SOI_NAMES));
+    }
+    String road = (abbr ? 'ถ.' : 'ถนน') + roadName;
+    String sub  = bkk ? 'แขวง' + area[1] : (abbr ? 'ต.' : 'ตำบล') + area[1];
+    String dist = bkk ? 'เขต' + area[2] : (abbr ? 'อ.' : 'อำเภอ') + area[2];
     String prov = bkk ? (abbr ? (chance(50) ? 'กทม.' : 'กรุงเทพฯ') : 'กรุงเทพมหานคร')
-                      : (abbr ? 'จ.' : 'จังหวัด') + p[7];
-    String postcode = nopc ? null : p[8];
+                      : (abbr ? 'จ.' : 'จังหวัด') + area[3];
+    String postcode = nopc ? null : area[4];
 
-    String street = joinParts(new List<String>{ prefix, houseNo, moo, noise, road, sub });
+    String separator = comma ? ', ' : (nospace ? '' : ' ');
+    String street = joinParts(new List<String>{ prefix, houseNo, moo, village, place, noise, soi, road, sub }, separator);
     if (thai) {
         street = thaiDigits(street);
         dist = thaiDigits(dist);
         postcode = thaiDigits(postcode);
     }
-    String fullAddress = joinParts(new List<String>{ street, dist, prov, postcode });
+    String fullAddress = joinParts(new List<String>{ street, dist, prov, postcode }, separator);
 
-    List<String> tags = new List<String>();
-    if (abbr)  { tags.add('abbr'); }
-    if (thai)  { tags.add('thai'); }
-    if (floor) { tags.add('floor'); }
-    if (eng)   { tags.add('eng'); }
-    if (nopc)  { tags.add('nopc'); }
+    List<String> tags = new List<String>{ bkk ? 'BKK' : 'UPC' };
+    if (abbr)    { tags.add('abbr'); }
+    if (thai)    { tags.add('thai'); }
+    if (floor)   { tags.add('floor'); }
+    if (eng)     { tags.add('eng'); }
+    if (nopc)    { tags.add('nopc'); }
+    if (comma)   { tags.add('comma'); }
+    if (nospace) { tags.add('nospace'); }
 
     Account a = new Account(
-        Name = 'GEO-TEST R' + stamp + '-' + String.valueOf(n).leftPad(2, '0') + ' ' + p[0] + ' ' + p[1]
-            + (tags.isEmpty() ? '' : ' [' + String.join(tags, ',') + ']'),
+        Name = ('GEO-TEST R' + stamp + '-' + String.valueOf(n).leftPad(2, '0') + ' ' + company
+            + ' [' + String.join(tags, ',') + ']').left(255),
         Address__c = fullAddress,
         BillingStreet = street,
         BillingPostalCode = postcode);
     if (statePicklists) {
-        a.BillingCity = joinParts(new List<String>{ dist, prov });
+        a.BillingCity = joinParts(new List<String>{ dist, prov }, ' ');
         a.put('BillingCountryCode', 'TH');
     } else {
         a.BillingCity = dist;
