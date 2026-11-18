@@ -45,7 +45,7 @@ sf apex run test \
 
 ### Test data
 
-`scripts/apex/create-test-data.apex` creates 10 Accounts named `GEO-TEST …`, each with an oggLocation and a deliberate "UPWARD pin". They cover the main cases: building + room + floor, a correct pin, a wrong district, abbreviations, English units, Thai digits, upcountry with no pin, district only, nonsense, and a blank address. Each case's expected location is in the script's comments. Remove them with `scripts/apex/delete-test-data.apex`.
+`scripts/apex/create-test-data.apex` creates 18 Accounts named `GEO-TEST …`, each with an oggLocation and a deliberate "UPWARD pin". It's safe to re-run: existing cases are skipped. They cover the main cases: building + room + floor, a correct pin, a wrong district, abbreviations, English units, Thai digits, upcountry with no pin, district only, nonsense, and a blank address (01–10). Cases 11–18 are edge cases, described in TC-18 and TC-19. Each case's expected location is in the script's comments. Remove them with `scripts/apex/delete-test-data.apex`.
 
 ```bash
 sf apex run --file scripts/apex/create-test-data.apex --target-org tterakit-sb
@@ -73,7 +73,7 @@ Before searching, Thai digits (๐–๙) are converted, and abbreviations (`ถ
 
 ### Test cases
 
-Create each Account the way users normally do, so that UPWARD creates the oggLocation record. TC-01 – TC-11 use the **record button**: open the oggLocation record and click **Suggest Location (Google)**. Within a few seconds a toast shows the result and the record refreshes. TC-12 – TC-17 test **bulk processing** with the list view button and the schedule.
+Create each Account the way users normally do, so that UPWARD creates the oggLocation record. TC-01 – TC-11 use the **record button**: open the oggLocation record and click **Suggest Location (Google)**. Within a few seconds a toast shows the result and the record refreshes. TC-12 – TC-17 test **bulk processing**; TC-18 – TC-19 are edge cases with the list view button and the schedule.
 
 | # | Scenario | Steps | Expected result |
 |---|---|---|---|
@@ -94,6 +94,8 @@ Create each Account the way users normally do, so that UPWARD creates the oggLoc
 | TC-15 | Nightly schedule | Run `scripts/apex/schedule-nightly.apex`; create a new Account so UPWARD creates a location; check the next morning | Setup → Scheduled Jobs lists *Suggest locations nightly*. The new location has suggested values after the run. Delete the scheduled job after testing if it isn't wanted yet. |
 | TC-16 | OpenStreetMap cap | With Provider = OpenStreetMap, run TC-13 with more than 200 unprocessed records | The page warns about the 200-record cap. At most 200 records are processed and flagged in that run; the next run continues with the rest. |
 | TC-17 | Re-queue a processed record | Untick `isCoordsUpdated__c` on a processed record, then run TC-13 | That record is processed again (new Last Modified Date); other flagged records aren't. |
+| TC-18 | UPWARD pin far away or invalid | Test data 11–16: the same Siam Paragon address with the pin in Chiang Mai, in Singapore, at `0,0`, with the longitude sign flipped, at the antipode, and with lat/lng swapped | Suggestion at Siam Paragon (~13.746, 100.535) every time. Different Distance ≈ 585 km, 1,430 km, 11,145 km, 16,180 km and 20,015 km (the maximum possible). **Swapped lat/lng: distance stays empty**, because a latitude of 100.5 isn't a valid coordinate. If UPWARD rejects that pin at insert, the create script says so. |
+| TC-19 | Address side contradicts | Test data 17: Phuket address, Bangkok pin. Test data 18: Bangkok address with Chiang Mai postcode 50000, correct pin | 17: suggestion in Phuket Town (~7.88, 98.39), distance ≈ 690 km. 18: the probe script shows `postcodeMatch=false`; all search steps are tried and the best-scored result is used (most likely still Siam Paragon, small distance). Treat 18 as "needs review": the address itself is inconsistent. |
 
 ### Checking the job
 
@@ -157,7 +159,7 @@ The output first shows the query variants built from the Thai address (`withoutU
 ## 6. Sign-off checklist
 
 - [ ] Unit tests pass, coverage ≥ 75% (target > 85%)
-- [ ] TC-01 – TC-17 executed and results recorded
+- [ ] TC-01 – TC-19 executed and results recorded
 - [ ] Accuracy sample (§3) reviewed with the business
 - [ ] API key restricted and quota set in Google Cloud
 - [ ] Permission set assigned to the right users, fields on the layout
