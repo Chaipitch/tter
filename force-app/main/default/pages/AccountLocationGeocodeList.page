@@ -21,11 +21,12 @@
                             <apex:outputText rendered="{!selectedCount > 0}"
                                 value="Look up the address of the {!selectedCount} selected record(s) and fill in the suggested latitude / longitude and distance." />
                             <apex:outputText rendered="{!selectedCount == 0}"
-                                value="No records are selected. This looks up ALL oggLocation records that don't have a suggestion yet (Suggested Latitude is empty)." />
+                                value="No records are selected. This looks up ALL oggLocation records that haven't been processed yet (isCoordsUpdated is unchecked)." />
                         </p>
                         <p class="slds-m-bottom_small">
                             It runs in the background in batches; large volumes can take a while.
-                            Records that already have a suggestion are only re-checked when you select them.
+                            Records that were already processed (isCoordsUpdated checked) are skipped,
+                            unless you select them; selected records are always processed again.
                         </p>
                         <apex:outputPanel rendered="{!openStreetMap}">
                             <p class="slds-m-bottom_small slds-text-color_error">

@@ -2,7 +2,7 @@
 <WebLink xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Suggest_Locations_Google</fullName>
     <availability>online</availability>
-    <description>Bulk location lookup: selected records, or all records without a suggestion when nothing is selected.</description>
+    <description>Bulk location lookup: selected records, or all records not processed yet (isCoordsUpdated__c = false) when nothing is selected.</description>
     <displayType>massActionButton</displayType>
     <linkType>page</linkType>
     <masterLabel>Suggest Locations (Google)</masterLabel>

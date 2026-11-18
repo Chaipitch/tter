@@ -1,5 +1,5 @@
 /**
- * Bulk processing: AccountLocationGeocodeBatch (selected records / all without a suggestion / scheduled)
+ * Bulk processing: AccountLocationGeocodeBatch (selected records / all not processed yet / scheduled)
  * and the list view button controller AccountLocationGeocodeListController.
  */
 @IsTest
@@ -27,8 +27,8 @@ private class AccountLocationGeocodeBatchTest {
         return m;
     }
 
-    /** n locations for one Account; the first "withSuggestion" already have a suggestion. */
-    private static List<ogg__Location__c> createLocations(Integer n, Integer withSuggestion) {
+    /** n locations for one Account; the first "processed" already have a suggestion and isCoordsUpdated__c = true. */
+    private static List<ogg__Location__c> createLocations(Integer n, Integer processed) {
         Account acc = (Account) TestRecordFactory.build(Account.SObjectType, new Map<String, Object>{
             'Name' => 'Batch Test ' + Crypto.getRandomInteger(),
             'Address__c' => THAI_ADDRESS
@@ -43,9 +43,10 @@ private class AccountLocationGeocodeBatchTest {
                     'ogg__Latitude__c' => 13.7280,
                     'ogg__Longitude__c' => 100.5650
                 });
-            if (i < withSuggestion) {
+            if (i < processed) {
                 loc.Suggested_Latitude__c = 1;
                 loc.Suggested_Longtitude__c = 1;
+                loc.isCoordsUpdated__c = true;
             }
             locs.add(loc);
         }
@@ -64,10 +65,10 @@ private class AccountLocationGeocodeBatchTest {
     }
 
     @IsTest
-    static void selectedRecordsAreProcessedEvenIfTheyHaveASuggestion() {
+    static void selectedRecordsAreProcessedEvenIfAlreadyFlagged() {
         configure(true, null);
         mockGoogle();
-        List<ogg__Location__c> locs = createLocations(5, 5);   // all 5 already have a suggestion
+        List<ogg__Location__c> locs = createLocations(5, 5);   // all 5 already processed (flag true)
         Set<Id> selected = new Set<Id>{ locs[0].Id, locs[1].Id };
 
         Test.startTest();
@@ -81,7 +82,7 @@ private class AccountLocationGeocodeBatchTest {
     static void noSelectionProcessesAllRecordsWithoutASuggestion() {
         configure(true, null);
         GoogleMapsCalloutMock m = mockGoogle();
-        List<ogg__Location__c> locs = createLocations(20, 5);  // 15 without a suggestion
+        List<ogg__Location__c> locs = createLocations(20, 5);  // 15 not processed yet
 
         Test.startTest();
         Id jobId = AccountLocationGeocodeBatch.run(null);
@@ -89,9 +90,35 @@ private class AccountLocationGeocodeBatchTest {
 
         Assert.isNotNull(jobId);
         Assert.areEqual(15, countWithSuggestion(locs, SUGGESTED_LAT));
-        Assert.areEqual(15, m.requests.size(), 'Records that already have a suggestion are skipped');
+        Assert.areEqual(15, m.requests.size(), 'Records with isCoordsUpdated__c = true are skipped');
+        Assert.areEqual(20, [SELECT COUNT() FROM ogg__Location__c WHERE Id IN :locs AND isCoordsUpdated__c = true],
+            'Processed records are flagged');
         Assert.isTrue(new AccountLocationGeocodeBatch().isAllMissing());
         Assert.isTrue(new AccountLocationGeocodeBatch(new Set<Id>()).isAllMissing());
+    }
+
+    @IsTest
+    static void flagDecidesWhatAutomaticRunsPickUp() {
+        configure(true, null);
+        GoogleMapsCalloutMock m = mockGoogle();
+        List<ogg__Location__c> locs = createLocations(2, 0);
+        // [0]: flagged but no suggestion (e.g. cleared by hand) -> skipped
+        // [1]: has an old suggestion but flag unticked          -> processed again
+        locs[0].isCoordsUpdated__c = true;
+        locs[1].Suggested_Latitude__c = 1;
+        locs[1].Suggested_Longtitude__c = 1;
+        update locs;
+
+        Test.startTest();
+        AccountLocationGeocodeBatch.run(null);
+        Test.stopTest();
+
+        Map<Id, ogg__Location__c> after = new Map<Id, ogg__Location__c>(
+            [SELECT Suggested_Latitude__c, isCoordsUpdated__c FROM ogg__Location__c WHERE Id IN :locs]);
+        Assert.isNull(after.get(locs[0].Id).Suggested_Latitude__c, 'Flagged record is skipped');
+        Assert.areEqual(SUGGESTED_LAT, after.get(locs[1].Id).Suggested_Latitude__c, 'Unflagged record is processed');
+        Assert.isTrue(after.get(locs[1].Id).isCoordsUpdated__c);
+        Assert.areEqual(1, m.requests.size());
     }
 
     @IsTest

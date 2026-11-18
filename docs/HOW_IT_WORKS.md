@@ -15,6 +15,7 @@ This feature gives a second opinion, **for large numbers of records**. The addre
 | `ogg__Latitude__c`, `ogg__Longitude__c` | UPWARD | Original pin |
 | `Suggested_Latitude__c`, `Suggested_Longtitude__c` | this feature | Google's pin for the address |
 | `Different_Distance__c` | this feature | Distance between the two pins, in **meters** |
+| `isCoordsUpdated__c` (checkbox) | this feature | `true` once coordinates were written; automatic runs skip these records |
 
 `Suggested_Longtitude__c` is spelled that way in the org, so the code uses that name.
 
@@ -56,18 +57,18 @@ This is the main way to process **large numbers of records**. Batch Apex splits 
 
 | Started with | Records processed |
 |---|---|
-| Records ticked in the list view | exactly those, **even if they already have a suggestion** (use this to re-check) |
-| Nothing ticked / `AccountLocationGeocodeBatch.run(null)` / the schedule | **all** records with `Suggested_Latitude__c` empty |
+| Records ticked in the list view | exactly those, **even if `isCoordsUpdated__c` is already true** (use this to re-check) |
+| Nothing ticked / `AccountLocationGeocodeBatch.run(null)` / the schedule | **all** records with `isCoordsUpdated__c` = false (not processed yet) |
 
 **How to start it**
 
-* **List view button "Suggest Locations (Google)"** (`WebLink` → Visualforce page `AccountLocationGeocodeList` + `AccountLocationGeocodeListController`). The page says what will be processed: the number of ticked records, or "all without a suggestion". After **Start**, it shows the batch job Id; **Back to list** returns to the list view. A list view lets you tick up to 200 records at a time; for more, tick nothing.
-* **Schedule:** `AccountLocationGeocodeBatch` is also `Schedulable`. `scripts/apex/schedule-nightly.apex` schedules it at 02:00 every night, for all records without a suggestion. New records are then filled in overnight without anyone clicking.
-* **Script:** `scripts/apex/regeocode-existing.apex` starts the same "all without a suggestion" run.
+* **List view button "Suggest Locations (Google)"** (`WebLink` → Visualforce page `AccountLocationGeocodeList` + `AccountLocationGeocodeListController`). The page says what will be processed: the number of ticked records, or "all not processed yet". After **Start**, it shows the batch job Id; **Back to list** returns to the list view. A list view lets you tick up to 200 records at a time; for more, tick nothing.
+* **Schedule:** `AccountLocationGeocodeBatch` is also `Schedulable`. `scripts/apex/schedule-nightly.apex` schedules it at 02:00 every night, for all records not processed yet. New records are then filled in overnight without anyone clicking.
+* **Script:** `scripts/apex/regeocode-existing.apex` starts the same "all not processed yet" run.
 
 `AccountLocationGeocodeBatch.run(...)` refuses to start when the feature is off. Each chunk checks again, so unchecking *Enabled* stops a running batch from making further calls.
 
-**Records Google can't find** (blank address, or no result) keep an empty *Suggested Latitude*, so every "all without a suggestion" run tries them again. That costs 1–3 requests each time. Fix the address, or leave them out by ticking records instead.
+**The `isCoordsUpdated__c` flag** is set to `true` in the same update that writes the coordinates. Automatic runs (nothing ticked, schedule, script) only pick records where it's `false`, so a record is processed once. Records Google can't find (blank address, or no result) and records where the call failed **keep `false`**, so they're tried again by the next automatic run, at 1–3 requests each time. Fix the address, or tick the flag by hand to stop retries. To process a record again, tick it in the list view, use the record button, or untick its flag.
 
 **With OpenStreetMap** (temporary provider, §4.5), each chunk is 10 records and a run is capped at **200 records** (`OSM_MAX_RECORDS_PER_RUN`), because Nominatim's usage policy doesn't allow bulk geocoding. Real volumes need Google.
 
@@ -98,7 +99,7 @@ Both paths call `AccountLocationGeocodeProcessor.process(ids)`. It runs `without
    * uses `Account.Address__c`
    * falls back to the location's own `ogg__RawAddress__c` if the Id isn't an Account or the Account no longer exists
    * skips the record if the address is blank
-2. **Callout budget.** Before each record it checks that 3 callouts are still available. If not, the record is returned as "deferred". The queueable chains those into a new job. The batch logs them, and they're picked up by the next "all without a suggestion" run; with a batch size of 30 or less this doesn't happen.
+2. **Callout budget.** Before each record it checks that 3 callouts are still available. If not, the record is returned as "deferred". The queueable chains those into a new job. The batch logs them, and they're picked up by the next automatic run (their flag is still false); with a batch size of 30 or less this doesn't happen.
 3. **Asking the provider** (§4). If nothing is found, or the provider returns an error, the record is left as it is and a message goes to the debug log. **One bad record never stops the others.**
 4. **Distance** (§5).
 5. **Saving.** All callouts happen first, then **one** `Database.update(..., false)` saves the chunk. Salesforce doesn't allow callouts after a DML statement in the same transaction. Partial success is allowed: a record that fails to save is logged, and the rest are still saved. Only the three target fields are written. UPWARD's own fields are never touched.
@@ -231,7 +232,7 @@ The Remote Site Settings `Google_Maps_Geocoding_API`, `Google_Places_API` and `O
 | `classes/AccountLocationGeocodeAction.cls` | `@AuraEnabled enqueue` / `getStatus` used by the button |
 | `objects/ogg__Location__c/webLinks/Suggest_Locations_Google` | The **Suggest Locations (Google)** list view button |
 | `pages/AccountLocationGeocodeList.page` + `classes/AccountLocationGeocodeListController.cls` | Confirmation page behind the list view button; starts the batch |
-| `classes/AccountLocationGeocodeBatch.cls` | Bulk: Batch Apex over selected records or all without a suggestion; Schedulable |
+| `classes/AccountLocationGeocodeBatch.cls` | Bulk: Batch Apex over selected records or all with `isCoordsUpdated__c` = false; Schedulable |
 | `classes/AccountLocationGeocodeProcessor.cls` | Shared per-record work: Account lookup via `ogg__ObjectId__c`, callouts, one update per chunk |
 | `classes/AccountLocationGeocodeQueueable.cls` | Job behind the record button; calls the processor |
 | `classes/GoogleGeocodingService.cls` | HTTP calls to the Geocoding and Places APIs, search order, scoring |
@@ -250,10 +251,11 @@ The Remote Site Settings `Google_Maps_Geocoding_API`, `Google_Places_API` and `O
 |---|---|
 | Batch Apex for bulk | Made for large volumes: each chunk has its own limits, any number of records, progress in Apex Jobs, and it can be scheduled. |
 | List view button with a Visualforce page | Salesforce doesn't allow LWC quick actions on list views; a Visualforce list button receives the ticked records. |
-| "Nothing ticked" = all without a suggestion | A list view allows ticking at most 200 records; this covers any volume without a separate tool. |
+| "Nothing ticked" = all not processed yet | A list view allows ticking at most 200 records; this covers any volume without a separate tool. |
 | Buttons and a schedule instead of a trigger | Runs are controlled: no Google cost or background work on every insert, and no interference with UPWARD's own saves. |
 | Headless quick action (LWC) | One click, no dialog; it can report the result in a toast. |
 | Queueable for the record button | Starts at once (a batch can wait in the flex queue), and its status can be polled for the toast. |
+| `isCoordsUpdated__c` flag instead of "Suggested Latitude is empty" | An explicit, editable "processed" marker. Users can untick it to queue a record again, and suggestions entered or cleared by hand don't confuse the selection. |
 | Chunks of 30 | 30 × 3 callouts = 90, within the limit of 100 per transaction. |
 | Callouts first, then one DML | Salesforce forbids callouts after DML in the same transaction; it also saves DML statements. |
 | Account found through `ogg__ObjectId__c` | The ogg package doesn't provide a lookup field. |
@@ -268,8 +270,8 @@ The Remote Site Settings `Google_Maps_Geocoding_API`, `Google_Places_API` and `O
 
 ## 9. Limits and known gaps
 
-* **Not real-time.** New or changed addresses get a suggestion at the next scheduled run, or when someone runs it from a list view or the record. Changed addresses aren't detected: records that already have a suggestion are only re-checked when ticked.
-* **Unfindable records are retried.** Records with no result keep an empty suggestion and are tried again by every "all without a suggestion" run.
+* **Not real-time.** New records get a suggestion at the next scheduled run, or when someone runs it from a list view or the record. Changed addresses aren't detected: once `isCoordsUpdated__c` is true, a record is only re-checked when ticked, sent through the record button, or its flag is unticked.
+* **Unfindable records are retried.** Records with no result keep `isCoordsUpdated__c` = false and are tried again by every automatic run.
 * **Rule-based address cleaning.** Uncommon ways of writing room, floor or building may not be removed. Run `test-geocode-address.apex` to see what was sent, and add a pattern to `ThaiAddressNormalizer` with a test.
 * **40-second wait in the browser.** If Google or the job queue is slow, the toast says *Still running*; the job still finishes and the values appear after a refresh.
 * **No result field.** The source (Geocoding or Places), the query used and the postcode match are only written to the debug log, not stored on the record.

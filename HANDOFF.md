@@ -4,8 +4,8 @@
 
 The customer's single-field address (`Account.Address__c`) of `ogg__Location__c` records is sent to Google Maps. Google's coordinates are written to `Suggested_Latitude__c` / `Suggested_Longtitude__c`, and the distance in meters from UPWARD's pin to `Different_Distance__c`. It's built for **large volumes** (Batch Apex):
 
-* **List view button "Suggest Locations (Google)"**: the ticked records, or, with nothing ticked, **all records without a suggestion**.
-* **Nightly schedule** (optional) over all records without a suggestion.
+* **List view button "Suggest Locations (Google)"**: the ticked records, or, with nothing ticked, **all records not processed yet (`isCoordsUpdated__c` unchecked)**. Processed records get `isCoordsUpdated__c` = true and are skipped by later automatic runs.
+* **Nightly schedule** (optional) over all records not processed yet.
 * **Record button "Suggest Location (Google)"**: one record, with the result in a toast.
 
 The search is tuned for Thai addresses: it removes room and floor details, expands abbreviations, and checks the postcode. Nothing runs on insert; an earlier version used a trigger, which has been removed.
@@ -17,14 +17,14 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
 | Item | Status |
 |---|---|
 | Code | On `main` in `Chaipitch/tter` |
-| Sandbox `tterakit-sb` | Record button + OpenStreetMap option **deployed and working** (old trigger removed). The OpenStreetMap probe returned the Emporium building with a postcode match. **Bulk processing (Batch Apex, list view button, schedule) is not deployed yet** |
+| Sandbox `tterakit-sb` | Record button, OpenStreetMap option and **bulk processing (Batch Apex, list view button, schedule) deployed** (old trigger removed). The OpenStreetMap probe returned the Emporium building with a postcode match. The `isCoordsUpdated__c` flag handling, added after that, **is not deployed yet** |
 | Google API key | **Not available yet.** Until it is, the temporary OpenStreetMap provider can be used for testing (no key) |
 | Tests against a real geocoder | **Not done yet.** All Apex tests use an HTTP mock |
 | Production | Not deployed |
 
 ## Next steps
 
-1. **Deploy bulk processing** to `tterakit-sb`: the same validate/deploy commands as before ([DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#3-deploy)), now with six test classes (new: `AccountLocationGeocodeBatchTest`).
+1. **Deploy the `isCoordsUpdated__c` handling** to `tterakit-sb`: the same validate/deploy commands as before ([DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#3-deploy)), six test classes.
 2. **Access and buttons:** re-assign the permission set (it now also covers the list view button), then place both buttons ([DEPLOYMENT_GUIDE §3.4–3.5](docs/DEPLOYMENT_GUIDE.md#34-assign-the-permission-set)).
 
    ```bash
@@ -53,7 +53,7 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
 | Link to Account | `ogg__ObjectId__c` (Text 18) + `ogg__prefix__c` | **No lookup field.** Both are required. The prefix is `001` for Account |
 | Address | `Account.Address__c` | If `ogg__ObjectId__c` isn't an Account Id: `ogg__Location__c.ogg__RawAddress__c` |
 | UPWARD's pin | `ogg__Latitude__c`, `ogg__Longitude__c` | Number(4,10) |
-| Target fields | `Suggested_Latitude__c`, `Suggested_Longtitude__c`, `Different_Distance__c` | Already in the org and **not** in this project. Note the spelling *Longtitude* |
+| Target fields | `Suggested_Latitude__c`, `Suggested_Longtitude__c`, `Different_Distance__c`, `isCoordsUpdated__c` (checkbox) | Already in the org and **not** in this project. Note the spelling *Longtitude* |
 | Required Account fields | e.g. `Tax_ID__c`, `Customer_Type__c`, `Company__c` | Filled automatically in tests by `TestRecordFactory` |
 
 ## Where things are
@@ -70,7 +70,7 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
 | `force-app/main/default/permissionsets/AccountLocation_Geocoding` | Access to both buttons (Apex classes + Visualforce page) + read access to the three target fields |
 | `manifest/package.xml` | What gets deployed (target fields excluded on purpose) |
 | `manifest/destructiveChanges.xml` | Removes the old trigger + handler (only for orgs that had them, i.e. `tterakit-sb`) |
-| `scripts/apex/` | `configure-settings` (Google), `configure-openstreetmap` (temporary, no key), `test-geocode-address`, `regeocode-existing` (bulk: all without a suggestion), `schedule-nightly` |
+| `scripts/apex/` | `configure-settings` (Google), `configure-openstreetmap` (temporary, no key), `test-geocode-address`, `regeocode-existing` (bulk: all not processed yet), `schedule-nightly` |
 
 Deploy and test commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#3-deploy) (six test classes: `AccountLocationGeocodingTest`, `AccountLocationGeocodeBatchTest`, `GoogleGeocodingServiceTest`, `GeoDistanceUtilTest`, `ThaiAddressNormalizerTest`, `OpenStreetMapGeocoderTest`).
 
@@ -85,13 +85,14 @@ Deploy and test commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#
 | See why a record has no suggestion | Debug log of the **user who started the run** (for the schedule: the user who scheduled it). Typical messages: `No Google Maps result`, `Geocoding API status REQUEST_DENIED` / `OVER_QUERY_LIMIT` |
 | See what was sent to Google for an address | `scripts/apex/test-geocode-address.apex` (prints the cleaned variants, source, `postcodeMatch`) |
 | Fill in many records at once | List view button with nothing ticked, or `scripts/apex/regeocode-existing.apex` |
-| Re-check records that already have a suggestion | Tick them in a list view and use the list view button |
+| Re-check records that were already processed | Tick them in a list view and use the list view button (or the record button). Or untick `isCoordsUpdated__c`, and the next automatic run picks them up |
+| Find records with no result | List view: `isCoordsUpdated__c` = false and the run has finished; these addresses are blank or weren't found |
 | Change the API key or options | Edit the custom setting; no deployment needed |
 | Switch provider | *Provider* = `Google` (needs API key) or `OpenStreetMap` (no key, testing only) in the custom setting |
 
 ## Known limitations / possible follow-ups
 
-1. **Not real-time, and changed addresses aren't detected.** New records are filled in at the next nightly run (if scheduled) or when someone runs it. Records that already have a suggestion are only re-checked when ticked. Records with no result keep an empty suggestion and are retried by every "all without a suggestion" run.
+1. **Not real-time, and changed addresses aren't detected.** New records are filled in at the next nightly run (if scheduled) or when someone runs it. Once `isCoordsUpdated__c` is true, a record is only re-checked when ticked, sent through the record button, or its flag is unticked. If UPWARD changes an address on an existing location, nothing resets the flag. Records with no result (blank or unfindable address) stay `false` and are retried by every automatic run, at 1–3 requests each.
 2. **Address cleaning uses fixed rules.** New ways of writing room, floor or building can slip through. Add the pattern to `ROOM_PATTERN` / `FLOOR_PATTERN` / `BUILDING_PATTERN` in `ThaiAddressNormalizer`, with a case in `ThaiAddressNormalizerTest`. The patterns were checked in Java, which uses the same regex engine as Apex.
 3. **No audit fields.** The source used (Geocoding or Places), the query and the postcode match only go to the debug log. Fields for these would make reviewing easier.
 4. **40-second wait in the browser.** If the job queue is slow, the toast says *Still running*; the values appear after a refresh.
@@ -111,4 +112,6 @@ Deploy and test commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#
 | [#7](https://github.com/Chaipitch/tter/pull/7) | Trigger replaced by the **Suggest Location (Google)** quick action button; old trigger removed with `destructiveChanges.xml` |
 | [#8](https://github.com/Chaipitch/tter/pull/8) | Docs: correct flag `--post-destructive-changes` |
 | [#9](https://github.com/Chaipitch/tter/pull/9) | Temporary OpenStreetMap (Nominatim) provider for testing without a Google API key |
-| next | Bulk processing: Batch Apex, list view button, nightly schedule; shared `AccountLocationGeocodeProcessor` |
+| [#10](https://github.com/Chaipitch/tter/pull/10) | Bulk processing: Batch Apex, list view button, nightly schedule; shared `AccountLocationGeocodeProcessor` |
+| [#11](https://github.com/Chaipitch/tter/pull/11) | Fix: `OSM_MAX_RECORDS_PER_RUN` visible to the list view controller |
+| next | `isCoordsUpdated__c` set after processing; automatic runs only pick records where it's false |

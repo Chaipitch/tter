@@ -55,7 +55,7 @@ private class AccountLocationGeocodingTest {
     }
 
     private static ogg__Location__c reload(Id recordId) {
-        String soql = 'SELECT Id, Suggested_Latitude__c, Suggested_Longtitude__c, Different_Distance__c, '
+        String soql = 'SELECT Id, Suggested_Latitude__c, Suggested_Longtitude__c, Different_Distance__c, isCoordsUpdated__c, '
             + GoogleMapsSettings.originalLatitudeField() + ', ' + GoogleMapsSettings.originalLongitudeField()
             + ' FROM ogg__Location__c WHERE Id = :recordId';
         return (ogg__Location__c) Database.queryWithBinds(
@@ -98,6 +98,7 @@ private class AccountLocationGeocodingTest {
         Assert.areEqual(SUGGESTED_LNG, rec.Suggested_Longtitude__c);
         Assert.isNotNull(rec.Different_Distance__c, 'Distance should be calculated');
         Assert.areEqual(expectedDistance(rec), rec.Different_Distance__c);
+        Assert.isTrue(rec.isCoordsUpdated__c, 'Processed records are flagged');
         Assert.areEqual(1, mock.requests.size(), 'Good first result -> single callout');
         Assert.areEqual(ThaiAddressNormalizer.prepare(THAI_ADDRESS).withoutUnit, mock.geocodeAddressParam(0),
             'Account address (without room / floor) must be sent to Google');
@@ -162,6 +163,7 @@ private class AccountLocationGeocodingTest {
         Test.stopTest();
 
         Assert.isNull(reload(loc.Id).Suggested_Latitude__c);
+        Assert.isFalse(reload(loc.Id).isCoordsUpdated__c, 'Blank address: not flagged');
         Assert.areEqual(0, mock.requests.size());
         Assert.isNull(AccountLocationGeocodeAction.getStatus(jobId, loc.Id).get('suggestedLatitude'));
     }
@@ -180,7 +182,9 @@ private class AccountLocationGeocodingTest {
         AccountLocationGeocodeAction.enqueue(loc.Id);
         Test.stopTest();
 
-        Assert.isNull(reload(loc.Id).Suggested_Latitude__c);
+        ogg__Location__c rec = reload(loc.Id);
+        Assert.isNull(rec.Suggested_Latitude__c);
+        Assert.isFalse(rec.isCoordsUpdated__c, 'Not flagged when Google failed, so it is retried');
         Assert.areEqual(1, mock.requests.size());
     }
 
