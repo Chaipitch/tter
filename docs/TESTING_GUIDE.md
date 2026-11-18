@@ -47,7 +47,7 @@ sf apex run test \
 
 The test data follows the real flow: the script creates Accounts, and **UPWARD creates the oggLocations**.
 
-1. **Create the Accounts:** `scripts/apex/create-test-data.apex` creates 18 Accounts named `GEO-TEST …` with Thai addresses chosen per test case. 01–10 are everyday cases; 11–18 are edge cases, see TC-18 and TC-19. It's safe to re-run: existing Accounts are skipped.
+1. **Create the Accounts:** `scripts/apex/create-test-data.apex` creates 18 Accounts named `GEO-TEST …` with Thai addresses chosen per test case. Each address goes into both `Address__c` (what the lookup uses) and the **Billing Address**, split into street, district (City), province (State), postcode and Thailand. **UPWARD creates the oggLocation from the Billing Address.** If State and Country/Territory Picklists are on, the province goes into City and the country code is `TH`. 01–10 are everyday cases; 11–18 are edge cases, see TC-18 and TC-19. It's safe to re-run: existing Accounts are skipped.
 
    ```bash
    sf apex run --file scripts/apex/create-test-data.apex --target-org tterakit-sb
