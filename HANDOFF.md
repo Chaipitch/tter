@@ -12,26 +12,39 @@ The search is tuned for Thai addresses: it removes room and floor details, expan
 
 How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) · Testing: [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)
 
-## Current status (2026-11-17)
+## Current status (2026-11-18)
 
 | Item | Status |
 |---|---|
-| Code | On `main` in `Chaipitch/tter` |
-| Sandbox `tterakit-sb` | Record button, OpenStreetMap option and **bulk processing (Batch Apex, list view button, schedule) deployed** (old trigger removed). The OpenStreetMap probe returned the Emporium building with a postcode match. The `isCoordsUpdated__c` flag handling, added after that, **is not deployed yet** |
-| Google API key | **Not available yet.** Until it is, the temporary OpenStreetMap provider can be used for testing (no key) |
-| Tests against a real geocoder | **Not done yet.** All Apex tests use an HTTP mock |
+| Code | On `main` in `Chaipitch/tter` (PRs #1–#12 merged) |
+| Sandbox `tterakit-sb` | **Everything deployed and validated** (six Apex test classes passing): record button, list view button + Batch Apex + schedule, `isCoordsUpdated__c` flag handling, OpenStreetMap option. The old trigger has been removed |
+| Provider | **OpenStreetMap** (temporary, no key) is configured in `tterakit-sb`. The probe script returned the Emporium building (`OSM_RANK_30`) with a postcode match |
+| Google API key | **Not available yet** |
+| Org setup after the last deploy | **Not confirmed:** permission set re-assigned, list view button added to the List View Button Layout, record button on the page layout, one-off flagging of records processed before `isCoordsUpdated__c` existed |
+| Functional tests (TESTING_GUIDE TC-01 – TC-17) | **Not done yet.** All Apex tests use an HTTP mock |
+| Nightly schedule | Not scheduled |
 | Production | Not deployed |
 
 ## Next steps
 
-1. **Deploy the `isCoordsUpdated__c` handling** to `tterakit-sb`: the same validate/deploy commands as before ([DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#3-deploy)), six test classes.
-2. **Access and buttons:** re-assign the permission set (it now also covers the list view button), then place both buttons ([DEPLOYMENT_GUIDE §3.4–3.5](docs/DEPLOYMENT_GUIDE.md#34-assign-the-permission-set)).
+1. **Finish the org setup in `tterakit-sb`** ([DEPLOYMENT_GUIDE §3.4–3.5](docs/DEPLOYMENT_GUIDE.md#34-assign-the-permission-set)):
+   * Re-assign the permission set. It covers both buttons and edit access to `isCoordsUpdated__c`:
 
-   ```bash
-   sf org assign permset --name AccountLocation_Geocoding --target-org tterakit-sb
+     ```bash
+     sf org assign permset --name AccountLocation_Geocoding --target-org tterakit-sb
+     ```
+
+   * Add **Suggest Locations (Google)** to oggLocation's *List View Button Layout*, and **Suggest Location (Google)** to the page layout.
+   * Create a list view "Not processed yet" (*isCoordsUpdated equals False*) to follow progress.
+2. **Flag records processed before the flag existed** (one-off, optional). Run this in Developer Console → Execute Anonymous. Without it, the next automatic run looks them up once more:
+
+   ```apex
+   List<ogg__Location__c> done = [SELECT Id FROM ogg__Location__c WHERE Suggested_Latitude__c != null AND isCoordsUpdated__c = false LIMIT 10000];
+   for (ogg__Location__c l : done) { l.isCoordsUpdated__c = true; }
+   update done;
    ```
 
-3. **Test with OpenStreetMap** (already configured): TC-01 – TC-13 and TC-16 in [TESTING_GUIDE](docs/TESTING_GUIDE.md). OpenStreetMap is fine for testing the flow, not for judging accuracy, and is capped at 200 records per bulk run.
+3. **Test the flow with OpenStreetMap:** TC-01, TC-02, TC-04 – TC-06, TC-08 – TC-13, TC-16 and TC-17 in [TESTING_GUIDE](docs/TESTING_GUIDE.md). OpenStreetMap is fine for testing the flow, not for judging accuracy, and a bulk run is capped at 200 records.
 4. **When the Google key arrives:** enable the **Geocoding API** and **Places API (New)**, restrict the key and set quotas ([DEPLOYMENT_GUIDE §2](docs/DEPLOYMENT_GUIDE.md#2-google-maps-platform-setup)). Then paste the key into `scripts/apex/configure-settings.apex` (it sets *Provider* = `Google`) and run:
 
    ```bash
@@ -39,10 +52,10 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
    ```
 
    Afterwards run `git checkout` on the file so the key is never committed.
-5. **Accuracy and volume with Google:** run TC-03 (10–20 real customer addresses where UPWARD's pin is known to be wrong, checked in Google Maps) and TC-14 (1,000+ records). Agree with the business what distance counts as wrong. The guide suggests over 50 m needs review and over 500 m is probably wrong.
+5. **Accuracy and volume with Google:** run TC-03 (10–20 real customer addresses where UPWARD's pin is known to be wrong, checked in Google Maps), TC-07 and TC-14 (1,000+ records). Agree with the business what distance counts as wrong. The guide suggests over 50 m needs review and over 500 m is probably wrong. Records that were processed with OpenStreetMap are flagged and won't be picked up again automatically. To redo them with Google, untick their `isCoordsUpdated__c` (or tick them in a list view).
 6. **Bulk-fill existing records:** list view button with nothing ticked, or `scripts/apex/regeocode-existing.apex`.
 7. **Nightly run** (optional, Google only): `scripts/apex/schedule-nightly.apex` (TC-15).
-8. **Production:** deploy (no `--post-destructive-changes` needed), Google as the provider, a production API key and quota, then steps 2, 4, 6 and 7.
+8. **Production:** deploy with the six test classes (no `--post-destructive-changes`: production never had the trigger), make sure `isCoordsUpdated__c` and the three target fields exist there, use Google as the provider with a production API key and quota, then steps 1, 4, 6 and 7.
 9. **Remove the OpenStreetMap option** once Google is in use (see limitation 6 below).
 
 ## Org facts the code relies on
@@ -114,4 +127,5 @@ Deploy and test commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#
 | [#9](https://github.com/Chaipitch/tter/pull/9) | Temporary OpenStreetMap (Nominatim) provider for testing without a Google API key |
 | [#10](https://github.com/Chaipitch/tter/pull/10) | Bulk processing: Batch Apex, list view button, nightly schedule; shared `AccountLocationGeocodeProcessor` |
 | [#11](https://github.com/Chaipitch/tter/pull/11) | Fix: `OSM_MAX_RECORDS_PER_RUN` visible to the list view controller |
-| next | `isCoordsUpdated__c` set after processing; automatic runs only pick records where it's false |
+| [#12](https://github.com/Chaipitch/tter/pull/12) | `isCoordsUpdated__c` set after processing; automatic runs only pick records where it's false |
+| next | HANDOFF status: everything deployed to `tterakit-sb` |
