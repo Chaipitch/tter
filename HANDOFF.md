@@ -67,6 +67,7 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
 | AccountLocation object | `ogg__Location__c` | ogg managed package (label "oggLocation") |
 | Link to Account | `ogg__ObjectId__c` (Text 18) + `ogg__prefix__c` | **No lookup field.** Both are required. The prefix is `001` for Account |
 | Address | `Account.Address__c` | If `ogg__ObjectId__c` isn't an Account Id: `ogg__Location__c.ogg__RawAddress__c` |
+| How UPWARD creates oggLocations | From the Account's **Billing Address** (standard fields) | The lookup uses `Address__c`. Keep both filled with the same address; if they differ, `Different_Distance__c` compares two different addresses. The test-data script fills both |
 | UPWARD's pin | `ogg__Latitude__c`, `ogg__Longitude__c` | Number(4,10) |
 | Target fields | `Suggested_Latitude__c`, `Suggested_Longtitude__c`, `Different_Distance__c`, `isCoordsUpdated__c` (checkbox) | Already in the org and **not** in this project. Note the spelling *Longtitude* |
 | Required Account fields | e.g. `Tax_ID__c`, `Customer_Type__c`, `Company__c` | Filled automatically in tests by `TestRecordFactory` |

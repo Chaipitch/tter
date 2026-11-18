@@ -6,7 +6,7 @@ This explains how the Google Maps "suggested coordinates" feature for `ogg__Loca
 
 ## 1. The problem it solves
 
-Customers keep their whole address in one field, `Account.Address__c`. When that field is filled in, UPWARD creates an `ogg__Location__c` record with a latitude/longitude and a map pin. If the address doesn't exactly match Google's data, UPWARD's pin can land in the wrong place.
+Customers keep their whole address in one field, `Account.Address__c`, and the same address in the standard **Billing Address**. UPWARD creates an `ogg__Location__c` record from the Billing Address with a latitude/longitude and a map pin. If the address doesn't exactly match Google's data, UPWARD's pin can land in the wrong place.
 
 This feature gives a second opinion, **for large numbers of records**. The address is sent to Google Maps, and Google's coordinates are stored next to UPWARD's. The distance between the two pins is stored too, so wrong pins are easy to spot. New oggLocation records are looked up **automatically** right after they're created. Existing records, records the trigger skipped, and re-checks are handled in bulk from a list view button or a schedule, or one at a time from a record button. Nothing runs when records are *changed*.
 
@@ -286,6 +286,7 @@ The Remote Site Settings `Google_Maps_Geocoding_API`, `Google_Places_API` and `O
 
 ## 9. Limits and known gaps
 
+* **Two address sources.** UPWARD pins the Billing Address; this feature looks up `Address__c`. If the two aren't the same address, a large `Different_Distance__c` may just mean the fields disagree, so check both before correcting a pin.
 * **Changed addresses aren't detected.** The trigger runs on insert only. Once `isCoordsUpdated__c` is true, a record is only re-checked when ticked, sent through the record button, or its flag is unticked.
 * **Large inserts with the trigger on** queue one job per insert transaction (Data Loader: one per 200 records). That's fine for Google within its quota, but with OpenStreetMap many parallel jobs break Nominatim's 1-request-per-second rule. Check *Disable Lookup On Create* before big loads.
 * **Unfindable records are retried.** Records with no result keep `isCoordsUpdated__c` = false and are tried again by every automatic run.
