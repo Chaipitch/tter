@@ -66,6 +66,12 @@ The test data follows the real flow: the script creates Accounts, and **UPWARD c
    sf apex run --file scripts/apex/apply-test-pins.apex --target-org tterakit-sb
    ```
 
+**More variety:** `scripts/apex/create-random-test-data.apex` adds extra random Accounts on each run, 20 by default, and never changes existing ones. Each is about half inside and half outside Bangkok, using real, well-known places. The address is written with random variations: abbreviations, Thai digits, floor and room, an English unit prefix, or a missing postcode. The name shows the place and variations, for example `GEO-TEST R261118153000-07 UPC Central Pattaya [abbr,thai]`. Set `RECORD_COUNT`, `INSIDE_BANGKOK_PERCENT` and `VARIATION_PERCENT` at the top. With OpenStreetMap, keep runs small: the trigger queues a job per run, and Nominatim allows 1 request per second.
+
+```bash
+sf apex run --file scripts/apex/create-random-test-data.apex --target-org tterakit-sb
+```
+
 Remove everything with `scripts/apex/delete-test-data.apex`; it also deletes the oggLocations UPWARD created for the GEO-TEST Accounts. The expected result of each case is in the comments of `create-test-data.apex`.
 
 ### Testing without a Google API key (OpenStreetMap)
