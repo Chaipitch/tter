@@ -51,6 +51,11 @@ public without sharing class GoogleMapsSettings {
     public static String language() { return trimToNull(get().Language__c); }
     public static Boolean usePlacesFallback() { return get().Use_Places_Fallback__c == true; }
 
+    /** Automatic lookup when an oggLocation is created (AccountLocationTrigger): on unless Disable_Lookup_On_Create__c. */
+    public static Boolean lookupOnCreate() {
+        return isEnabled() && get().Disable_Lookup_On_Create__c != true;
+    }
+
     public static Integer batchSize() {
         Decimal v = get().Batch_Size__c;
         if (v == null || v < 1) {

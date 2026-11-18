@@ -5,6 +5,9 @@
 //          coordinates, antipode), address and postcode that contradict each other
 //
 //  - Safe to re-run: cases whose GEO-TEST Account already exists are skipped.
+//  - The on-create trigger looks the new oggLocations up automatically a few seconds after this script.
+//    To test the list view / record buttons with fresh records instead, check "Disable Lookup On Create"
+//    in Google Maps Settings first (and uncheck it afterwards).
 //
 //  - Required Account / oggLocation fields (e.g. Tax_ID__c, Customer_Type__c, Company__c) are filled
 //    automatically from their type: text -> 13 random digits, picklist -> first active value,

@@ -127,6 +127,7 @@ private class OpenStreetMapGeocoderTest {
             Provider__c = 'OpenStreetMap',
             Country_Code__c = 'TH');
         GoogleMapsSettings.cached = null;
+        AccountLocationTriggerHandler.bypass = true;   // this test drives the record button
         GoogleMapsCalloutMock m = mock();
         m.osmBodies.add(GoogleMapsCalloutMock.osmOk(13.7305, 100.5696, 30, '10110'));
 

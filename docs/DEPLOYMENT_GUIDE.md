@@ -58,15 +58,13 @@ When a test inserts an Account with an address, UPWARD may create its own `ogg__
 
 The running user needs no access to the target fields. The job runs in system mode. To see the fields on the page, give your users read access, either through the permission set in step 3.4 or through their profile.
 
-### 1.6 Old trigger (only for orgs that still have it)
+### 1.6 The on-create trigger
 
-Earlier versions ran automatically through `AccountLocationTrigger` (with `AccountLocationTriggerHandler`). In `tterakit-sb` they were already removed when the button version was deployed. Production never had them.
+`AccountLocationTrigger` (after insert on `ogg__Location__c`) is part of the deployment. It looks up every new oggLocation automatically.
 
-If you deploy to an org that still has them, add this flag to the validate and deploy commands in step 3. Otherwise the trigger keeps firing on every new record:
-
-```bash
---post-destructive-changes manifest/destructiveChanges.xml
-```
+* **Other triggers:** if your org or UPWARD has other triggers on `ogg__Location__c`, they keep working. This one only queues a background job and doesn't change the record during the insert.
+* **Before a large data load:** check *Disable Lookup On Create* in Google Maps Settings (step 4). Afterwards, process the loaded records with the list view button (nothing ticked) or the nightly run, then uncheck it again.
+* **The removed `destructiveChanges.xml`:** an earlier version of this project used it to delete the trigger. It has been removed, so the trigger can't be deleted by accident. Don't use an old copy.
 
 ---
 
@@ -210,6 +208,7 @@ Go to **Setup → Custom Settings → Google Maps Settings → Manage → New** 
 | Provider | `Google` (or blank). `OpenStreetMap` = temporary no-key option, see above |
 | API Key | your key (not needed for OpenStreetMap) |
 | Use Places Fallback | ✔ if Places API (New) is enabled |
+| Disable Lookup On Create | ☐ (unchecked = new records are looked up automatically; check it before large data loads) |
 | Country Code | `TH` (restricts Geocoding results to Thailand) |
 | Region | `th` (biases results to Thailand) |
 | Language | `th` (results come back in Thai, matching the Thai input) |
@@ -249,11 +248,12 @@ A line like `source=GEOCODING_API lat=13.74... lng=100.53...` in the output mean
 
 ## 7. Rollback
 
-* **Quick off switch:** uncheck `Enabled__c` in the custom setting. Both buttons then say the lookup is turned off, and a running batch stops making calls at its next chunk.
+* **Quick off switch:** uncheck `Enabled__c` in the custom setting. The trigger does nothing, both buttons say the lookup is turned off, and a running batch stops making calls at its next chunk.
+* **Only stop the automatic lookup on create:** check *Disable Lookup On Create*. The buttons and the nightly run keep working.
 * **Stop a running batch:** Setup → Apex Jobs → *Abort* on `AccountLocationGeocodeBatch`.
 * **Stop the nightly run:** Setup → Scheduled Jobs → *Suggest locations nightly* → Del.
 * **Hide the buttons:** remove them from the list view button layout and the page layout / Lightning page.
-* **Full removal:** delete the buttons, page, LWC and classes with a destructive deployment. Keep the fields if their data is needed.
+* **Full removal:** delete the trigger, buttons, page, LWC and classes with a destructive deployment. Keep the fields if their data is needed.
 
 ---
 
