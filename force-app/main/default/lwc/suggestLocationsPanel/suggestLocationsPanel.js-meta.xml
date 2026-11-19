@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>62.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Suggest Locations</masterLabel>
+    <description>Utility bar panel: bulk location lookup for all oggLocation records not processed yet (isCoordsUpdated__c = false), with progress, summary and a toast. Floats over any page, e.g. the Account list view.</description>
+    <targets>
+        <target>lightning__UtilityBar</target>
+    </targets>
+</LightningComponentBundle>

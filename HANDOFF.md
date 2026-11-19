@@ -6,6 +6,7 @@ The customer's single-field address (`Account.Address__c`) of `ogg__Location__c`
 
 * **Automatically when an oggLocation is created** (`AccountLocationTrigger`, after insert). It can be switched off with *Disable Lookup On Create* in the custom setting, for example for large data loads.
 * **Account list view button "Suggest Locations (Google)"**: processes **all oggLocations not processed yet (`isCoordsUpdated__c` unchecked)**, whichever Accounts are selected. It's on Account because oggLocation is a managed-package object where list view buttons can't be placed. Processed records get `isCoordsUpdated__c` = true and are skipped by later runs.
+* **"Suggest Locations" utility bar panel**: the same bulk run in a panel that floats over any page (e.g. the Account list view), with progress, a summary and a toast. An admin adds it to the app's utility bar once (DEPLOYMENT_GUIDE §3.5b).
 * **Nightly schedule** (optional) over all records not processed yet.
 * **Record button "Suggest Location (Google)"**: one record, with the result in a toast.
 
@@ -136,3 +137,4 @@ Deploy and test commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#
 | [#13](https://github.com/Chaipitch/tter/pull/13) – [#15](https://github.com/Chaipitch/tter/pull/15) | HANDOFF status; GEO-TEST data scripts with edge cases |
 | #16 | On-create trigger brought back (after insert), alongside the list view and record buttons; *Disable Lookup On Create* setting; `destructiveChanges.xml` removed |
 | next | Bulk button moved to **Account** list views (oggLocation is a managed object); it processes all oggLocations with `isCoordsUpdated__c` = false |
+| next | "Suggest Locations" utility bar panel (floats over the Account list view); shared `LocationLookupRunService`; list view page: progress, summary, toast, modal look, Lightning-safe navigation (#23, #24) |

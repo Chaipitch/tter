@@ -14,9 +14,11 @@
         <members>GoogleGeocodingServiceTest</members>
         <members>GoogleMapsCalloutMock</members>
         <members>GoogleMapsSettings</members>
+        <members>LocationLookupRunService</members>
         <members>OpenStreetMapGeocoder</members>
         <members>OpenStreetMapGeocoderTest</members>
         <members>SuggestLocationsFromAccountsController</members>
+        <members>SuggestLocationsPanelController</members>
         <members>TestRecordFactory</members>
         <members>ThaiAddressNormalizer</members>
         <members>ThaiAddressNormalizerTest</members>
@@ -51,6 +53,7 @@
     </types>
     <types>
         <members>suggestGoogleLocation</members>
+        <members>suggestLocationsPanel</members>
         <name>LightningComponentBundle</name>
     </types>
     <types>
