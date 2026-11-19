@@ -1,5 +1,5 @@
-<apex:page standardController="ogg__Location__c" recordSetVar="locations"
-           extensions="AccountLocationGeocodeListController"
+<apex:page standardController="Account" recordSetVar="accounts"
+           extensions="SuggestLocationsFromAccountsController"
            lightningStylesheets="true" title="Suggest Locations (Google)">
     <apex:slds />
     <div class="slds-scope">
@@ -18,15 +18,15 @@
 
                     <apex:outputPanel rendered="{!enabled}">
                         <p class="slds-m-bottom_small">
-                            <apex:outputText rendered="{!selectedCount > 0}"
-                                value="Look up the address of the {!selectedCount} selected record(s) and fill in the suggested latitude / longitude and distance." />
-                            <apex:outputText rendered="{!selectedCount == 0}"
-                                value="No records are selected. This looks up ALL oggLocation records that haven't been processed yet (isCoordsUpdated is unchecked)." />
+                            This looks up <b>all oggLocation records that haven't been processed yet</b>
+                            (isCoordsUpdated unchecked):
+                            <b><apex:outputText value="{!unprocessedCount}" /><apex:outputText value="+" rendered="{!moreThanCounted}" /></b>
+                            record(s). Which Accounts are selected doesn't matter.
                         </p>
                         <p class="slds-m-bottom_small">
                             It runs in the background in batches; large volumes can take a while.
-                            Records that were already processed (isCoordsUpdated checked) are skipped,
-                            unless you select them; selected records are always processed again.
+                            Progress: Setup &gt; Apex Jobs. To process a record again, untick its isCoordsUpdated
+                            or use the "Suggest Location (Google)" button on the record.
                         </p>
                         <apex:outputPanel rendered="{!openStreetMap}">
                             <p class="slds-m-bottom_small slds-text-color_error">
@@ -36,7 +36,7 @@
                         </apex:outputPanel>
                     </apex:outputPanel>
 
-                    <apex:commandButton action="{!start}" value="Start" disabled="{!NOT(enabled)}"
+                    <apex:commandButton action="{!start}" value="Start" disabled="{!NOT(enabled) || unprocessedCount == 0}"
                                         styleClass="slds-button slds-button_brand" />
                     <apex:commandButton action="{!back}" value="Cancel" immediate="true"
                                         styleClass="slds-button slds-button_neutral" />

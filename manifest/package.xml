@@ -4,7 +4,6 @@
         <members>AccountLocationGeocodeAction</members>
         <members>AccountLocationGeocodeBatch</members>
         <members>AccountLocationGeocodeBatchTest</members>
-        <members>AccountLocationGeocodeListController</members>
         <members>AccountLocationGeocodeProcessor</members>
         <members>AccountLocationGeocodeQueueable</members>
         <members>AccountLocationGeocodingTest</members>
@@ -17,13 +16,14 @@
         <members>GoogleMapsSettings</members>
         <members>OpenStreetMapGeocoder</members>
         <members>OpenStreetMapGeocoderTest</members>
+        <members>SuggestLocationsFromAccountsController</members>
         <members>TestRecordFactory</members>
         <members>ThaiAddressNormalizer</members>
         <members>ThaiAddressNormalizerTest</members>
         <name>ApexClass</name>
     </types>
     <types>
-        <members>AccountLocationGeocodeList</members>
+        <members>SuggestLocationsFromAccounts</members>
         <name>ApexPage</name>
     </types>
     <types>
@@ -68,7 +68,7 @@
         <name>RemoteSiteSetting</name>
     </types>
     <types>
-        <members>ogg__Location__c.Suggest_Locations_Google</members>
+        <members>Account.Suggest_Locations_Google</members>
         <name>WebLink</name>
     </types>
     <version>62.0</version>
