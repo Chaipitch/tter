@@ -1,12 +1,3 @@
-/**
- * Server side of the utility bar panel "Suggest Locations" (LWC suggestLocationsPanel).
- * The panel floats over any page (e.g. the Account list view) and runs the same bulk lookup as the Account
- * list view button: AccountLocationGeocodeBatch for all oggLocations with isCoordsUpdated__c = false.
- *
- *  getOverview()                 settings, number not processed yet, and a run of this user that is still going
- *  startRun()                    starts the batch; returns what the panel needs to follow it
- *  getStatus(jobId, ...)         progress, and the summary once finished (LocationLookupRunService)
- */
 public with sharing class SuggestLocationsPanelController {
 
     @AuraEnabled

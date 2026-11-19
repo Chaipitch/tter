@@ -8,10 +8,6 @@ const POLL_INTERVAL_MS = 2000;
 const MAX_POLLS = 20; // ~40 seconds
 const FINISHED = ['Completed', 'Failed', 'Aborted'];
 
-/**
- * Headless quick action "Suggest Location (Google)" on ogg__Location__c.
- * Starts the background Google Maps lookup, waits for it, refreshes the record and reports the result.
- */
 export default class SuggestGoogleLocation extends LightningElement {
     @api recordId;
     isRunning = false;

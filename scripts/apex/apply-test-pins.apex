@@ -1,10 +1,10 @@
 // Overwrites the UPWARD pin (ogg__Latitude__c / ogg__Longitude__c) of the GEO-TEST oggLocations with
 // deliberate test pins, and clears the lookup results (Suggested_*, Different_Distance__c, isCoordsUpdated__c),
-// so the cases can be run again with the Account list view button or the record button.
+// so the cases can be run again with the "Suggest Locations" global action or the record button.
 //
 // Run it AFTER create-test-data.apex, once UPWARD has created the oggLocations.
 // This is an update, so the on-create trigger doesn't fire: start the lookup yourself afterwards
-// (Account list view button "Suggest Locations (Google)").
+// (global action "Suggest Locations": + in the header -> Start).
 // Run it again any time to reset the GEO-TEST results to these pins.
 //
 // Run:  sf apex run --file scripts/apex/apply-test-pins.apex --target-org tterakit-sb
@@ -68,4 +68,4 @@ for (String name : PINS.keySet()) {
     }
 }
 System.debug(LoggingLevel.ERROR, 'Applied test pins to ' + updates.size() + ' oggLocations. '
-    + 'Now run the Account list view button "Suggest Locations (Google)".');
+    + 'Now run the global action "Suggest Locations" (+ in the header) -> Start.');

@@ -1,18 +1,3 @@
-/**
- * Bulk processing: geocodes many ogg__Location__c records with Batch Apex.
- *
- * Which records:
- *   new AccountLocationGeocodeBatch(ids)    the given records (e.g. selected in a list view)
- *   new AccountLocationGeocodeBatch()       all records not processed yet (isCoordsUpdated__c = false)
- *
- * Start it with AccountLocationGeocodeBatch.run(ids or null): it checks the feature is enabled and uses the
- * configured batch size (max 30 per execute = up to 90 callouts of the 100 allowed). It is also Schedulable,
- * e.g. nightly over all records not processed yet:
- *   System.schedule('Suggest locations nightly', '0 0 2 * * ?', new AccountLocationGeocodeBatch());
- *
- * With Provider__c = OpenStreetMap a run is capped at OSM_MAX_RECORDS_PER_RUN records: the Nominatim
- * usage policy does not allow bulk geocoding. Use Google for real volumes.
- */
 public without sharing class AccountLocationGeocodeBatch
         implements Database.Batchable<SObject>, Database.AllowsCallouts, Schedulable {
 

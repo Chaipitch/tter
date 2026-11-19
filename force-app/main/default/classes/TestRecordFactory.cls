@@ -1,11 +1,3 @@
-/**
- * Builds test records that satisfy the org's required fields (e.g. Account.Tax_ID__c, Customer_Type__c,
- * Company__c) without hard-coding them: every field that is required at the database level
- * (not nillable, createable, no default) and not supplied by the caller gets a value based on its type.
- * Lookup fields get a newly inserted parent record, built the same way (two levels deep).
- *
- * If a validation rule needs a specific value, pass it in the "values" map.
- */
 @IsTest
 public class TestRecordFactory {
 

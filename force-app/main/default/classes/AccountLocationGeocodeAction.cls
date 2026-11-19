@@ -1,13 +1,3 @@
-/**
- * Server side of the "Suggest Location (Google)" quick action on ogg__Location__c
- * (LWC: suggestGoogleLocation).
- *
- *  enqueue(recordId)            starts AccountLocationGeocodeQueueable for the record, returns the job Id
- *  getStatus(jobId, recordId)   job status + the record's current suggested values, polled by the LWC
- *
- * Can also be called from Apex / anonymous Apex for one record:
- *   AccountLocationGeocodeAction.enqueue('a0X...');
- */
 public with sharing class AccountLocationGeocodeAction {
 
     @AuraEnabled

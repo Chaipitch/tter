@@ -1,15 +1,3 @@
-/**
- * Geocodes ogg__Location__c records and saves the result. Shared by the single-record button
- * (AccountLocationGeocodeQueueable) and bulk processing (AccountLocationGeocodeBatch).
- *
- * For each record: Account Id from ogg__ObjectId__c -> Account.Address__c, or the Account's Billing Address
- * when Address__c is blank (no Account or no address: the record is skipped)
- * -> GoogleGeocodingService (Google or OpenStreetMap) -> Suggested_Latitude__c / Suggested_Longtitude__c /
- * Different_Distance__c, and isCoordsUpdated__c = true (only when coordinates were written; records with no
- * result or a blank address keep the flag false so they can be retried). All callouts first, then one
- * partial-success update.
- * Runs without sharing: a system process that must update records regardless of the running user.
- */
 public without sharing class AccountLocationGeocodeProcessor {
 
     /**

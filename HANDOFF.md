@@ -2,45 +2,44 @@
 
 ## What this is
 
-The customer's single-field address (`Account.Address__c`) of `ogg__Location__c` records is sent to Google Maps. Google's coordinates are written to `Suggested_Latitude__c` / `Suggested_Longtitude__c`, and the distance in meters from UPWARD's pin to `Different_Distance__c`. Four ways it runs:
+The customer's single-field address (`Account.Address__c`, or the Billing Address when it's blank) of `ogg__Location__c` records is sent to Google Maps. Google's coordinates are written to `Suggested_Latitude__c` / `Suggested_Longtitude__c`, and the distance in meters from UPWARD's pin to `Different_Distance__c`. Processed records get `isCoordsUpdated__c` = true. Ways it runs:
 
 * **Automatically when an oggLocation is created** (`AccountLocationTrigger`, after insert). It can be switched off with *Disable Lookup On Create* in the custom setting, for example for large data loads.
-* **Account list view button "Suggest Locations (Google)"**: processes **all oggLocations not processed yet (`isCoordsUpdated__c` unchecked)**, whichever Accounts are selected. It's on Account because oggLocation is a managed-package object where list view buttons can't be placed. Processed records get `isCoordsUpdated__c` = true and are skipped by later runs.
-* **"Suggest Locations" global action**: the same bulk run in a modal that floats over the current page (e.g. the Account list view). It's in the global actions menu (**+** in the header), so it works in the managed app; add it to the Global Publisher Layout once (DEPLOYMENT_GUIDE §3.5b). In editable apps the same panel can also be a utility bar item (§3.5c).
+* **"Suggest Locations" global action** (**+** in the header): a modal that floats over the current page, for example the Account list view in the managed app. **Start** processes **all oggLocations not processed yet** (`isCoordsUpdated__c` unchecked) with Batch Apex, with progress, a summary and a toast.
 * **Nightly schedule** (optional) over all records not processed yet.
 * **Record button "Suggest Location (Google)"**: one record, with the result in a toast.
 
-The Account list view button and the schedule handle **large volumes** (Batch Apex): existing records and records the trigger skipped. The search is tuned for Thai addresses: it removes room and floor details, expands abbreviations, and checks the postcode.
+The search is tuned for Thai addresses: it removes room and floor details, expands abbreviations, and checks the postcode.
 
 How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) · Testing: [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)
 
-## Current status (2026-11-18)
+## Current status (2026-11-19)
 
 | Item | Status |
 |---|---|
-| Code | On `main` in `Chaipitch/tter` (PRs #1–#12 merged) |
-| Sandbox `tterakit-sb` | Record button, Batch Apex + schedule, `isCoordsUpdated__c` handling and the OpenStreetMap option are **deployed and validated**. The **on-create trigger** (brought back alongside the buttons) **is not deployed yet** |
-| Bulk button | **Moved to Account list views** (not deployed yet): the oggLocation list view button couldn't be placed on the managed object. The old oggLocation button, page and controller are still in `tterakit-sb` but unused; see DEPLOYMENT_GUIDE §3.5 to delete them |
+| Code | On `main` in `Chaipitch/tter` |
+| Sandbox `tterakit-sb` | **Everything deployed and validated** (six Apex test classes passing): on-create trigger, record button, "Suggest Locations" global action, Batch Apex + schedule, `isCoordsUpdated__c` handling, Billing Address fallback, OpenStreetMap option |
+| Cleanup (latest change) | The Account list view button (with its page and controller) and the utility bar variant were **removed from the project**, replaced by the global action. They're still deployed in `tterakit-sb`, with the older oggLocation list button pieces: delete them with `manifest/cleanup` (DEPLOYMENT_GUIDE §3.5c). Header comments were removed from the source files |
 | Provider | **OpenStreetMap** (temporary, no key) is configured in `tterakit-sb`. The probe script returned the Emporium building (`OSM_RANK_30`) with a postcode match |
 | Google API key | **Not available yet** |
-| Org setup after the last deploy | **Not confirmed:** permission set re-assigned, Account list view button added to Account's List View Button Layout, record button on the page layout, one-off flagging of records processed before `isCoordsUpdated__c` existed |
-| Functional tests (TESTING_GUIDE TC-01 – TC-17) | **Not done yet.** All Apex tests use an HTTP mock |
+| Org setup | **Not confirmed:** permission set re-assigned, **Suggest Locations** on the Global Publisher Layout, record button on the oggLocation page layout, one-off flagging of records processed before `isCoordsUpdated__c` existed |
+| Functional tests (TESTING_GUIDE TC-01 – TC-19) | **Not done yet.** All Apex tests use an HTTP mock |
 | Nightly schedule | Not scheduled |
 | Production | Not deployed |
 
 ## Next steps
 
-0. **Deploy the on-create trigger** to `tterakit-sb`: the same validate/deploy commands as before ([DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#3-deploy)), six test classes, no destructive flag. Then add *Disable Lookup On Create* = unchecked to the settings (`configure-openstreetmap.apex` or `configure-settings.apex` does it), and run TC-08.
-1. **Finish the org setup in `tterakit-sb`** ([DEPLOYMENT_GUIDE §3.4–3.5](docs/DEPLOYMENT_GUIDE.md#34-assign-the-permission-set)):
-   * Re-assign the permission set. It covers both buttons and edit access to `isCoordsUpdated__c`:
+1. **Deploy the cleanup** to `tterakit-sb` (same validate/deploy commands, six test classes), then delete the leftovers with `manifest/cleanup` ([DEPLOYMENT_GUIDE §3.5c](docs/DEPLOYMENT_GUIDE.md#35c-remove-leftovers-from-earlier-versions-orgs-that-had-them-eg-tterakit-sb)). Remove the Account button from Account's *List View Button Layout* first.
+2. **Finish the org setup** ([DEPLOYMENT_GUIDE §3.4–3.5b](docs/DEPLOYMENT_GUIDE.md#34-assign-the-permission-set)):
+   * Re-assign the permission set (record button, global action, edit access to `isCoordsUpdated__c`):
 
      ```bash
      sf org assign permset --name AccountLocation_Geocoding --target-org tterakit-sb
      ```
 
-   * Add **Suggest Locations (Google)** to **Account**'s *List View Button Layout*, and **Suggest Location (Google)** to the oggLocation page layout.
+   * Add **Suggest Locations** to the Global Publisher Layout, and **Suggest Location (Google)** to the oggLocation page layout.
    * Optional: an oggLocation report filtered on *isCoordsUpdated equals False* to follow progress.
-2. **Flag records processed before the flag existed** (one-off, optional). Run this in Developer Console → Execute Anonymous. Without it, the next automatic run looks them up once more:
+3. **Flag records processed before the flag existed** (one-off, optional). Run this in Developer Console → Execute Anonymous. Without it, the next bulk run looks them up once more:
 
    ```apex
    List<ogg__Location__c> done = [SELECT Id FROM ogg__Location__c WHERE Suggested_Latitude__c != null AND isCoordsUpdated__c = false LIMIT 10000];
@@ -48,19 +47,19 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
    update done;
    ```
 
-3. **Test the flow with OpenStreetMap:** TC-01, TC-02, TC-04 – TC-06, TC-08 – TC-13, TC-16 and TC-17 in [TESTING_GUIDE](docs/TESTING_GUIDE.md). OpenStreetMap is fine for testing the flow, not for judging accuracy, and a bulk run is capped at 200 records.
-4. **When the Google key arrives:** enable the **Geocoding API** and **Places API (New)**, restrict the key and set quotas ([DEPLOYMENT_GUIDE §2](docs/DEPLOYMENT_GUIDE.md#2-google-maps-platform-setup)). Then paste the key into `scripts/apex/configure-settings.apex` (it sets *Provider* = `Google`) and run:
+4. **Test the flow with OpenStreetMap:** TC-01, TC-02, TC-04 – TC-06, TC-08 – TC-13, TC-16 and TC-17 in [TESTING_GUIDE](docs/TESTING_GUIDE.md). OpenStreetMap is fine for testing the flow, not for judging accuracy, and a bulk run is capped at 200 records.
+5. **When the Google key arrives:** enable the **Geocoding API** and **Places API (New)**, restrict the key and set quotas ([DEPLOYMENT_GUIDE §2](docs/DEPLOYMENT_GUIDE.md#2-google-maps-platform-setup)). Then paste the key into `scripts/apex/configure-settings.apex` (it sets *Provider* = `Google`) and run:
 
    ```bash
    sf apex run --file scripts/apex/configure-settings.apex --target-org tterakit-sb
    ```
 
    Afterwards run `git checkout` on the file so the key is never committed.
-5. **Accuracy and volume with Google:** run TC-03 (10–20 real customer addresses where UPWARD's pin is known to be wrong, checked in Google Maps), TC-07 and TC-14 (1,000+ records). Agree with the business what distance counts as wrong. The guide suggests over 50 m needs review and over 500 m is probably wrong. Records that were processed with OpenStreetMap are flagged and won't be picked up again automatically. To redo them with Google, untick their `isCoordsUpdated__c` (or tick them in a list view).
-6. **Bulk-fill existing records:** Account list view button, or `scripts/apex/regeocode-existing.apex`.
-7. **Nightly run** (optional, Google only): `scripts/apex/schedule-nightly.apex` (TC-15).
-8. **Production:** deploy with the six test classes, make sure `isCoordsUpdated__c` and the three target fields exist there, and use Google as the provider with a production API key and quota. Then do steps 1, 4, 6 and 7. **Check *Disable Lookup On Create* before bulk-filling existing records**, so a data migration doesn't also start the trigger, and uncheck it afterwards.
-9. **Remove the OpenStreetMap option** once Google is in use (see limitation 6 below).
+6. **Accuracy and volume with Google:** run TC-03 (10–20 real customer addresses where UPWARD's pin is known to be wrong, checked in Google Maps), TC-07 and TC-14 (1,000+ records). Agree with the business what distance counts as wrong; the guide suggests over 50 m needs review and over 500 m is probably wrong. Records processed with OpenStreetMap are flagged and won't be picked up again automatically. To redo them with Google, untick their `isCoordsUpdated__c`.
+7. **Bulk-fill existing records:** the "Suggest Locations" global action, or `scripts/apex/regeocode-existing.apex`.
+8. **Nightly run** (optional, Google only): `scripts/apex/schedule-nightly.apex` (TC-15).
+9. **Production:** deploy with the six test classes, make sure `isCoordsUpdated__c` and the three target fields exist there, and use Google as the provider with a production API key and quota. Then do steps 2, 5, 7 and 8 (`manifest/cleanup` isn't needed: production never had the old buttons). **Check *Disable Lookup On Create* before bulk-filling existing records**, so a data migration doesn't also start the trigger, and uncheck it afterwards.
+10. **Remove the OpenStreetMap option** once Google is in use (see limitation 6 below).
 
 ## Org facts the code relies on
 
@@ -78,15 +77,15 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
 
 | Path | What |
 |---|---|
-| `force-app/main/default/objects/Account/webLinks/Suggest_Locations_Google.webLink-meta.xml` | The **Suggest Locations (Google)** button on Account list views (bulk) |
-| `force-app/main/default/pages/SuggestLocationsFromAccounts.page` | Confirmation page behind the Account list view button |
+| `force-app/main/default/quickActions/Suggest_Locations.quickAction-meta.xml` + `aura/suggestLocationsGlobalAction/` + `lwc/suggestLocationsPanel/` | The **Suggest Locations** global action: Aura wrapper hosting the panel (count, Start, progress, summary, toast) |
 | `force-app/main/default/quickActions/ogg__Location__c.Suggest_Google_Location.quickAction-meta.xml` | The **Suggest Location (Google)** record button |
 | `force-app/main/default/lwc/suggestGoogleLocation/` | Headless action: start job → poll status → refresh record → toast |
-| `force-app/main/default/classes/` | `AccountLocationGeocodeBatch` (bulk, Schedulable), `SuggestLocationsFromAccountsController` (Account list view button), `AccountLocationGeocodeProcessor` (shared per-record work), `AccountLocationGeocodeAction` + `AccountLocationGeocodeQueueable` (record button), `GoogleGeocodingService`, `ThaiAddressNormalizer`, `GeoDistanceUtil`, `GoogleMapsSettings`, plus tests, `GoogleMapsCalloutMock` and `TestRecordFactory` |
+| `force-app/main/default/classes/` | `AccountLocationGeocodeBatch` (bulk, Schedulable), `SuggestLocationsPanelController` + `LocationLookupRunService` (global action panel), `AccountLocationGeocodeProcessor` (shared per-record work), `AccountLocationGeocodeAction` + `AccountLocationGeocodeQueueable` (record button), `GoogleGeocodingService`, `ThaiAddressNormalizer`, `GeoDistanceUtil`, `GoogleMapsSettings`, plus tests, `GoogleMapsCalloutMock` and `TestRecordFactory` |
 | `force-app/main/default/objects/Google_Maps_Settings__c/` | Custom setting: key, on/off switch, country/region/language, Places fallback, field names, batch size, timeout |
 | `force-app/main/default/remoteSiteSettings/` | `maps.googleapis.com`, `places.googleapis.com`, `nominatim.openstreetmap.org` (temporary) |
-| `force-app/main/default/permissionsets/AccountLocation_Geocoding` | Access to both buttons (Apex classes + Visualforce page) + read access to the three target fields |
+| `force-app/main/default/permissionsets/AccountLocation_Geocoding` | Access to the record button and the global action (Apex classes), read access to the three target fields, edit access to `isCoordsUpdated__c` |
 | `manifest/package.xml` | What gets deployed (target fields excluded on purpose) |
+| `manifest/cleanup/` | Deletes leftovers of earlier versions (old list view buttons, pages, controllers) from an org |
 | `force-app/main/default/triggers/AccountLocationTrigger.trigger` | After insert on `ogg__Location__c`: queues the lookup for new records (`AccountLocationTriggerHandler`) |
 | `scripts/apex/` | `configure-settings` (Google), `configure-openstreetmap` (temporary, no key), `test-geocode-address`, `regeocode-existing` (bulk: all not processed yet), `schedule-nightly` |
 
@@ -103,7 +102,7 @@ Deploy and test commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#
 | See whether it ran / progress | Setup → Apex Jobs → `AccountLocationGeocodeBatch` (bulk: batches processed / total) or `AccountLocationGeocodeQueueable` (record button) |
 | See why a record has no suggestion | Debug log of the **user who started the run** (for the schedule: the user who scheduled it). Typical messages: `No Google Maps result`, `Geocoding API status REQUEST_DENIED` / `OVER_QUERY_LIMIT` |
 | See what was sent to Google for an address | `scripts/apex/test-geocode-address.apex` (prints the cleaned variants, source, `postcodeMatch`) |
-| Fill in many records at once | Account list view button, or `scripts/apex/regeocode-existing.apex` |
+| Fill in many records at once | "Suggest Locations" global action (**+** in the header), or `scripts/apex/regeocode-existing.apex` |
 | Re-check records that were already processed | Untick their `isCoordsUpdated__c` (the next bulk run picks them up), or use the record button |
 | Find records with no result | oggLocation report: `isCoordsUpdated__c` = false after a run has finished; these addresses are blank or weren't found |
 | Change the API key or options | Edit the custom setting; no deployment needed |
@@ -136,6 +135,6 @@ Deploy and test commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#
 | [#12](https://github.com/Chaipitch/tter/pull/12) | `isCoordsUpdated__c` set after processing; automatic runs only pick records where it's false |
 | [#13](https://github.com/Chaipitch/tter/pull/13) – [#15](https://github.com/Chaipitch/tter/pull/15) | HANDOFF status; GEO-TEST data scripts with edge cases |
 | #16 | On-create trigger brought back (after insert), alongside the list view and record buttons; *Disable Lookup On Create* setting; `destructiveChanges.xml` removed |
-| next | Bulk button moved to **Account** list views (oggLocation is a managed object); it processes all oggLocations with `isCoordsUpdated__c` = false |
-| next | "Suggest Locations" utility bar panel (floats over the Account list view); shared `LocationLookupRunService`; list view page: progress, summary, toast, modal look, Lightning-safe navigation (#23, #24) |
-| next | "Suggest Locations" global action (modal over the current page, works in managed apps), wrapping the same panel; TESTING_GUIDE restored (it was truncated in #25) |
+| [#22](https://github.com/Chaipitch/tter/pull/22) – [#25](https://github.com/Chaipitch/tter/pull/25) | Bulk button on Account list views (oggLocation is a managed object), then progress, summary, toast, modal look; utility bar panel; shared `LocationLookupRunService` |
+| [#26](https://github.com/Chaipitch/tter/pull/26) – [#28](https://github.com/Chaipitch/tter/pull/28) | "Suggest Locations" global action (modal over the current page, works in managed apps); metadata fixes; TESTING_GUIDE restored |
+| next | Cleanup: Account list view button, its page and controller, and the utility bar variant removed (replaced by the global action); `manifest/cleanup` for the org; header comments removed from source files |

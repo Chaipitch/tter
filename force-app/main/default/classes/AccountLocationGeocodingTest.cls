@@ -1,10 +1,3 @@
-/**
- * End-to-end tests: on-create trigger (AccountLocationTrigger) and record button (AccountLocationGeocodeAction)
- * -> AccountLocationGeocodeQueueable -> AccountLocationGeocodeProcessor.
- *
- * Required fields on Account / ogg__Location__c are filled by TestRecordFactory. If a validation rule
- * needs a specific value, add it to the values map in newAccount() / newLocation().
- */
 @IsTest
 private class AccountLocationGeocodingTest {
 

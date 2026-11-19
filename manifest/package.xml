@@ -21,16 +21,11 @@
         <members>LocationLookupRunService</members>
         <members>OpenStreetMapGeocoder</members>
         <members>OpenStreetMapGeocoderTest</members>
-        <members>SuggestLocationsFromAccountsController</members>
         <members>SuggestLocationsPanelController</members>
         <members>TestRecordFactory</members>
         <members>ThaiAddressNormalizer</members>
         <members>ThaiAddressNormalizerTest</members>
         <name>ApexClass</name>
-    </types>
-    <types>
-        <members>SuggestLocationsFromAccounts</members>
-        <name>ApexPage</name>
     </types>
     <types>
         <members>AccountLocationTrigger</members>
@@ -74,10 +69,6 @@
         <members>Google_Places_API</members>
         <members>OpenStreetMap_Nominatim</members>
         <name>RemoteSiteSetting</name>
-    </types>
-    <types>
-        <members>Account.Suggest_Locations_Google</members>
-        <name>WebLink</name>
     </types>
     <version>62.0</version>
 </Package>

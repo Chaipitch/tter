@@ -3,8 +3,5 @@
     <apiVersion>62.0</apiVersion>
     <isExposed>true</isExposed>
     <masterLabel>Suggest Locations</masterLabel>
-    <description>Bulk location lookup for oggLocations not processed yet: count, progress, summary, toast. Utility bar item, or inside the global action suggestLocationsGlobalAction.</description>
-    <targets>
-        <target>lightning__UtilityBar</target>
-    </targets>
+    <description>Bulk location lookup for oggLocations not processed yet: count, progress, summary, toast. Shown by the global action suggestLocationsGlobalAction.</description>
 </LightningComponentBundle>

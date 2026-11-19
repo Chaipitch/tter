@@ -1,7 +1,3 @@
-/**
- * HttpCalloutMock for Google Geocoding API, Places API (New) Text Search and OpenStreetMap Nominatim.
- * Routes by endpoint host, can return a sequence of Geocoding responses, and records every request.
- */
 @IsTest
 public class GoogleMapsCalloutMock implements HttpCalloutMock {
 
