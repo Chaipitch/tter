@@ -6,4 +6,5 @@
     <lightningComponent>suggestLocationsGlobalAction</lightningComponent>
     <optionsCreateFeedItem>false</optionsCreateFeedItem>
     <type>LightningComponent</type>
+    <width>640</width>
 </QuickAction>
