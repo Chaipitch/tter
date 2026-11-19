@@ -1,6 +1,6 @@
 /**
  * Bulk processing: AccountLocationGeocodeBatch (selected records / all not processed yet / scheduled)
- * and the list view button controller AccountLocationGeocodeListController.
+ * and the Account list view button controller SuggestLocationsFromAccountsController.
  */
 @IsTest
 private class AccountLocationGeocodeBatchTest {
@@ -169,18 +169,21 @@ private class AccountLocationGeocodeBatchTest {
         Assert.areEqual(3, countWithSuggestion(locs, SUGGESTED_LAT));
     }
 
-    // ------------------------------------------------------------------ list view button
+    // ------------------------------------------------------------------ Account list view button
 
     @IsTest
-    static void listButtonWithSelectionStartsBatch() {
+    static void accountListButtonProcessesAllUnprocessedLocations() {
         configure(true, null);
-        mockGoogle();
-        List<ogg__Location__c> locs = createLocations(4, 0);
+        GoogleMapsCalloutMock m = mockGoogle();
+        List<ogg__Location__c> locs = createLocations(4, 1);   // 3 not processed yet
 
-        ApexPages.StandardSetController setCon = new ApexPages.StandardSetController(locs);
-        setCon.setSelected(new List<ogg__Location__c>{ locs[0], locs[1] });
-        AccountLocationGeocodeListController ctrl = new AccountLocationGeocodeListController(setCon);
-        Assert.areEqual(2, ctrl.selectedCount);
+        // Which Accounts are selected doesn't matter
+        List<Account> someAccounts = [SELECT Id FROM Account LIMIT 1];
+        ApexPages.StandardSetController setCon = new ApexPages.StandardSetController(someAccounts);
+        setCon.setSelected(someAccounts);
+        SuggestLocationsFromAccountsController ctrl = new SuggestLocationsFromAccountsController(setCon);
+        Assert.areEqual(3, ctrl.unprocessedCount);
+        Assert.isFalse(ctrl.moreThanCounted);
         Assert.isTrue(ctrl.enabled);
         Assert.isFalse(ctrl.openStreetMap);
 
@@ -190,33 +193,17 @@ private class AccountLocationGeocodeBatchTest {
 
         Assert.isTrue(ctrl.started);
         Assert.isNotNull(ctrl.jobId);
-        Assert.areEqual(2, countWithSuggestion(locs, SUGGESTED_LAT));
-        Assert.isTrue(ApexPages.hasMessages(ApexPages.Severity.CONFIRM));
-    }
-
-    @IsTest
-    static void listButtonWithoutSelectionProcessesAllMissing() {
-        configure(true, null);
-        mockGoogle();
-        List<ogg__Location__c> locs = createLocations(4, 1);
-
-        AccountLocationGeocodeListController ctrl =
-            new AccountLocationGeocodeListController(new ApexPages.StandardSetController(locs));
-        Assert.areEqual(0, ctrl.selectedCount);
-
-        Test.startTest();
-        ctrl.start();
-        Test.stopTest();
-
         Assert.areEqual(3, countWithSuggestion(locs, SUGGESTED_LAT));
+        Assert.areEqual(3, m.requests.size(), 'The already processed record is skipped');
+        Assert.isTrue(ApexPages.hasMessages(ApexPages.Severity.CONFIRM));
         ctrl.back();   // returns to the list view in the UI
     }
 
     @IsTest
-    static void listButtonShowsErrorWhenDisabled() {
+    static void accountListButtonShowsErrorWhenDisabled() {
         configure(false, null);
-        AccountLocationGeocodeListController ctrl =
-            new AccountLocationGeocodeListController(new ApexPages.StandardSetController(new List<ogg__Location__c>()));
+        SuggestLocationsFromAccountsController ctrl =
+            new SuggestLocationsFromAccountsController(new ApexPages.StandardSetController(new List<Account>()));
 
         Assert.isFalse(ctrl.enabled);
         ctrl.start();

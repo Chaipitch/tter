@@ -3,6 +3,6 @@
     <apiVersion>62.0</apiVersion>
     <availableInTouch>false</availableInTouch>
     <confirmationTokenRequired>false</confirmationTokenRequired>
-    <description>List view button page: starts the bulk location lookup (AccountLocationGeocodeBatch) for selected oggLocation records, or for all records not processed yet (isCoordsUpdated__c = false).</description>
+    <description>Account list view button page: starts the bulk location lookup (AccountLocationGeocodeBatch) for all oggLocation records not processed yet (isCoordsUpdated__c = false).</description>
     <label>Suggest Locations (Google)</label>
 </ApexPage>

@@ -2,12 +2,12 @@
 <WebLink xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Suggest_Locations_Google</fullName>
     <availability>online</availability>
-    <description>Bulk location lookup: selected records, or all records not processed yet (isCoordsUpdated__c = false) when nothing is selected.</description>
+    <description>Bulk location lookup for all oggLocation records not processed yet (isCoordsUpdated__c = false). Which Accounts are selected doesn't matter.</description>
     <displayType>massActionButton</displayType>
     <linkType>page</linkType>
     <masterLabel>Suggest Locations (Google)</masterLabel>
     <openType>replace</openType>
-    <page>AccountLocationGeocodeList</page>
+    <page>SuggestLocationsFromAccounts</page>
     <protected>false</protected>
     <requireRowSelection>false</requireRowSelection>
 </WebLink>

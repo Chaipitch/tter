@@ -3,11 +3,11 @@
 This SFDX project checks the Account's single-field address of `ogg__Location__c` records against Google Maps in the background, and stores Google's coordinates next to the ones UPWARD saved. Four ways it runs:
 
 * **Automatically when an oggLocation is created** (trigger, after insert). Can be switched off with *Disable Lookup On Create* in the custom setting, for example during a large data load.
-* **List view button "Suggest Locations (Google)"**: tick records, or tick nothing to process **all records not processed yet (`isCoordsUpdated__c` unchecked)**. Runs as Batch Apex. Each processed record gets `isCoordsUpdated__c` = true, so it isn't processed again.
+* **Account list view button "Suggest Locations (Google)"**: processes **all oggLocations not processed yet (`isCoordsUpdated__c` unchecked)**, whichever Accounts are selected. It lives on Account because oggLocation belongs to a managed package. Runs as Batch Apex. Each processed record gets `isCoordsUpdated__c` = true, so it isn't processed again.
 * **Scheduled run** (for example nightly) over all records not processed yet: `scripts/apex/schedule-nightly.apex`.
 * **Record button "Suggest Location (Google)"**: one record, with the result shown in a toast.
 
-The list view button and the schedule are for **large volumes**: existing records, records the trigger skipped, and re-checks.
+The Account list view button and the schedule are for **large volumes**: existing records, and records the trigger skipped. To re-check a processed record, untick its `isCoordsUpdated__c` or use the record button.
 
 Fields written:
 
@@ -23,11 +23,11 @@ Fields written:
 Full explanation: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md). Current status and next steps: [HANDOFF.md](HANDOFF.md).
 
 ```
-Bulk:   list view button "Suggest Locations (Google)" ─► VF page AccountLocationGeocodeList (confirm)
+Bulk:   Account list view button "Suggest Locations (Google)" ─► VF page SuggestLocationsFromAccounts (confirm)
         scheduled job / regeocode-existing.apex          │
                                                           ▼
                                        AccountLocationGeocodeBatch  (Batch Apex, 30 records per execute; 10 with OpenStreetMap)
-                                         selected records, or all with isCoordsUpdated__c = false
+                                         all oggLocations with isCoordsUpdated__c = false
                                                           │
 Create: ogg__Location__c inserted ─► AccountLocationTrigger ─► AccountLocationTriggerHandler ─┐
 Single: record button "Suggest Location (Google)" ─► LWC ─► AccountLocationGeocodeAction ─────┴─► AccountLocationGeocodeQueueable
@@ -49,7 +49,7 @@ Single: record button "Suggest Location (Google)" ─► LWC ─► AccountLocat
 force-app/main/default/
 ├── classes/
 │   ├── AccountLocationGeocodeBatch.cls       BULK: Batch Apex over selected / all records not processed yet; Schedulable
-│   ├── AccountLocationGeocodeListController.cls  list view button page controller
+│   ├── SuggestLocationsFromAccountsController.cls  Account list view button page controller
 │   ├── AccountLocationGeocodeProcessor.cls   shared: find address, geocode, save (used by batch + queueable)
 │   ├── AccountLocationTriggerHandler.cls     on create: queue the lookup for new records
 │   ├── AccountLocationGeocodeAction.cls      record button Apex: start the job, report its status
@@ -61,15 +61,15 @@ force-app/main/default/
 │   ├── GeoDistanceUtil.cls                   distance (meters) helper
 │   ├── GoogleMapsCalloutMock.cls             @IsTest HTTP mock
 │   ├── TestRecordFactory.cls                 @IsTest records with the org's required fields filled in
-│   ├── AccountLocationGeocodeBatchTest.cls   bulk: batch, schedule, list view button
+│   ├── AccountLocationGeocodeBatchTest.cls   bulk: batch, schedule, Account list view button
 │   ├── AccountLocationGeocodingTest.cls      end-to-end trigger / record button / queueable tests
 │   ├── GoogleGeocodingServiceTest.cls
 │   ├── GeoDistanceUtilTest.cls
 │   ├── ThaiAddressNormalizerTest.cls
 │   └── OpenStreetMapGeocoderTest.cls
 ├── triggers/AccountLocationTrigger.trigger   after insert on ogg__Location__c
-├── pages/AccountLocationGeocodeList.page     list view button confirmation page
-├── objects/ogg__Location__c/webLinks/Suggest_Locations_Google   the list view button
+├── pages/SuggestLocationsFromAccounts.page   Account list view button confirmation page
+├── objects/Account/webLinks/Suggest_Locations_Google   the Account list view button
 ├── lwc/suggestGoogleLocation/                headless quick action (button → job → toast)
 ├── quickActions/ogg__Location__c.Suggest_Google_Location   the "Suggest Location (Google)" button
 ├── objects/Google_Maps_Settings__c/          hierarchy custom setting (API key, switches, field mapping)

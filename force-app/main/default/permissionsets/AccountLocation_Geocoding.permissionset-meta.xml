@@ -5,10 +5,10 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
-        <apexClass>AccountLocationGeocodeListController</apexClass>
+        <apexClass>SuggestLocationsFromAccountsController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
-    <description>Use the "Suggest Location (Google)" record button and the "Suggest Locations (Google)" list view button, and read the suggested coordinates and distance on oggLocation.</description>
+    <description>Use the "Suggest Location (Google)" record button and the "Suggest Locations (Google)" Account list view button, and read the suggested coordinates and distance on oggLocation.</description>
     <fieldPermissions>
         <editable>false</editable>
         <field>ogg__Location__c.Different_Distance__c</field>
@@ -32,7 +32,7 @@
     <hasActivationRequired>false</hasActivationRequired>
     <label>AccountLocation Geocoding</label>
     <pageAccesses>
-        <apexPage>AccountLocationGeocodeList</apexPage>
+        <apexPage>SuggestLocationsFromAccounts</apexPage>
         <enabled>true</enabled>
     </pageAccesses>
 </PermissionSet>
