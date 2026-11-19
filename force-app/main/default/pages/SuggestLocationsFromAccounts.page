@@ -2,6 +2,22 @@
            extensions="SuggestLocationsFromAccountsController"
            lightningStylesheets="true" title="Suggest Locations (Google)">
     <apex:slds />
+    <script>
+        // Lightning Experience: StandardSetController.cancel() returns a Salesforce Classic URL, which shows
+        // "The page no longer exists". Go back to the Account list view the Lightning way instead.
+        // Returns true when handled (the button then doesn't submit); false in Salesforce Classic.
+        function geoBackToList() {
+            if (typeof sforce === 'undefined' || !sforce.one) {
+                return false;
+            }
+            if (sforce.one.back) {
+                sforce.one.back(true);   // previous page = the list view, refreshed
+            } else {
+                sforce.one.navigateToURL('/lightning/o/Account/list');
+            }
+            return true;
+        }
+    </script>
     <div class="slds-scope">
         <div class="slds-p-around_medium">
             <h1 class="slds-text-heading_medium slds-m-bottom_small">Suggest Locations (Google)</h1>
@@ -39,6 +55,7 @@
                     <apex:commandButton action="{!start}" value="Start" disabled="{!NOT(enabled) || unprocessedCount == 0}"
                                         styleClass="slds-button slds-button_brand" />
                     <apex:commandButton action="{!back}" value="Cancel" immediate="true"
+                                        onclick="if (geoBackToList()) { return false; }"
                                         styleClass="slds-button slds-button_neutral" />
                 </apex:outputPanel>
 
@@ -109,6 +126,7 @@
                     </apex:outputPanel>
 
                     <apex:commandButton action="{!back}" value="Back to list" immediate="true"
+                                        onclick="if (geoBackToList()) { return false; }"
                                         styleClass="slds-button slds-button_neutral" />
                 </apex:outputPanel>
             </apex:form>
