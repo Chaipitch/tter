@@ -108,15 +108,8 @@ public without sharing class GoogleGeocodingService {
         String url = GEOCODE_ENDPOINT
             + '?address=' + EncodingUtil.urlEncode(address, 'UTF-8')
             + '&key=' + EncodingUtil.urlEncode(GoogleMapsSettings.apiKey(), 'UTF-8');
-        if (GoogleMapsSettings.countryCode() != null) {
-            url += '&components=' + EncodingUtil.urlEncode('country:' + GoogleMapsSettings.countryCode(), 'UTF-8');
-        }
-        if (GoogleMapsSettings.region() != null) {
-            url += '&region=' + EncodingUtil.urlEncode(GoogleMapsSettings.region(), 'UTF-8');
-        }
-        if (GoogleMapsSettings.language() != null) {
-            url += '&language=' + EncodingUtil.urlEncode(GoogleMapsSettings.language(), 'UTF-8');
-        }
+        url += '&components=' + EncodingUtil.urlEncode('country:' + GoogleMapsSettings.countryCode(), 'UTF-8')
+            + '&language=' + EncodingUtil.urlEncode(GoogleMapsSettings.language(), 'UTF-8');
 
         HttpRequest req = new HttpRequest();
         req.setEndpoint(url);
@@ -165,12 +158,8 @@ public without sharing class GoogleGeocodingService {
             'textQuery' => address,
             'pageSize'  => 1
         };
-        if (GoogleMapsSettings.language() != null) {
-            payload.put('languageCode', GoogleMapsSettings.language());
-        }
-        if (GoogleMapsSettings.region() != null) {
-            payload.put('regionCode', GoogleMapsSettings.region());
-        }
+        payload.put('languageCode', GoogleMapsSettings.language());
+        payload.put('regionCode', GoogleMapsSettings.countryCode());
 
         HttpRequest req = new HttpRequest();
         req.setEndpoint(PLACES_ENDPOINT);

@@ -22,7 +22,7 @@ sf apex run test \
 
 | Test class | Covers |
 |---|---|
-| `AccountLocationGeocodingTest` | On-create trigger: an insert is looked up automatically and flagged; records inserted already flagged are skipped; *Disable Lookup On Create* skips the trigger but the buttons still work; a 60-record insert queues one job (30 per execution). Record button Apex (`enqueue` → job → `getStatus`) fills suggested lat/lng + distance; setting disabled and wrong record type report an error; blank address; Google error leaves the record unchanged; no original coordinates → no distance; Billing Address used when `Address__c` is blank (address order: `Address__c` → Billing; no Account → skipped, `ogg__RawAddress__c` ignored). Uses the Thai Emporium address. |
+| `AccountLocationGeocodingTest` | On-create trigger: an insert is looked up automatically and flagged; records inserted already flagged are skipped; with the lookup on create switched off the trigger skips, but the buttons still work; a 60-record insert queues one job (30 per execution). Record button Apex (`enqueue` → job → `getStatus`) fills suggested lat/lng + distance; setting disabled and wrong record type report an error; blank address; Google error leaves the record unchanged; no original coordinates → no distance; Billing Address used when `Address__c` is blank (address order: `Address__c` → Billing; no Account → skipped, `ogg__RawAddress__c` ignored). Uses the Thai Emporium address. |
 | `GoogleGeocodingServiceTest` | Thai search order (address without room/floor → street level → Places); postcode check; best-score choice; country/region/language params; Places failure keeps the Geocoding result; REQUEST_DENIED and HTTP 500 errors; blank address; settings defaults/validation |
 | `ThaiAddressNormalizerTest` | Room/floor removal (`ห้องเลขที่ 91,96`, `ชั้นที่ 9`, `Room`, `12th Floor`); building removal; Thai digits; abbreviations (`ถ.`, `ซ.`, `ต.`, `อ.`, `จ.`, `ม.`, `กทม.`, `กรุงเทพฯ`); postcode extraction |
 | `OpenStreetMapGeocoderTest` | Provider switch (`OpenStreetMap`/`OSM`/blank/`Google`); enabled without an API key; batch capped at 10; Nominatim request (`format=jsonv2`, `countrycodes`, `accept-language`, User-Agent, no key); area result → street-level query; best result when only area results; empty result; HTTP 429; button end to end with OpenStreetMap; Google and Places never called |
@@ -102,18 +102,18 @@ Before searching, Thai digits (๐–๙) are converted, and abbreviations (`ถ
 
 ### Test cases
 
-Create each Account the way users normally do, so that UPWARD creates the oggLocation record. **New records are looked up automatically by the trigger** (TC-08). To test the buttons on fresh records, check *Disable Lookup On Create* first, then TC-01 – TC-11 use the **record button**: open the oggLocation record and click **Suggest Location (Google)**. Within a few seconds a toast shows the result and the record refreshes. TC-12 – TC-17 test **bulk processing**; TC-18 – TC-19 are edge cases.
+Create each Account the way users normally do, so that UPWARD creates the oggLocation record. **New records are looked up automatically by the trigger** (TC-08). TC-01 – TC-11 use the **record button**, which also works on records the trigger already processed (to reset GEO-TEST results, run `apply-test-pins.apex`): open the oggLocation record and click **Suggest Location (Google)**. Within a few seconds a toast shows the result and the record refreshes. TC-12 – TC-17 test **bulk processing**; TC-18 – TC-19 are edge cases.
 
 | # | Scenario | Steps | Expected result |
 |---|---|---|---|
 | TC-01 | Thai address with building, room and floor | Account with `Address__c` = `622 อาคารเอ็มโพเรียม ทาวเวอร์ ห้องเลขที่ 91,96 ชั้นที่ 9 ถนนสุขุมวิท แขวงคลองตัน เขตคลองเตย กรุงเทพมหานคร 10110` | Suggested point is at the Emporium Tower on Sukhumvit (around 13.730, 100.569). The probe script (§4) shows `postcodeMatch=true`. |
 | TC-02 | Thai digits and abbreviations | `เลขที่ ๙๙/๑ ม.๓ ต.บางพูด อ.ปากเกร็ด จ.นนทบุรี ๑๑๑๒๐` | The address is read as `99/1 หมู่ 3 ตำบลบางพูด อำเภอปากเกร็ด จังหวัดนนทบุรี 11120`. The suggested point is in Bang Phut, Pak Kret. |
-| TC-03 | Real customer addresses that don't match Google exactly | Take 10–20 real customer addresses, including ones where the UPWARD pin is known to be wrong | Suggested coordinates point to the real place (check in Google Maps, see §3). Different Distance shows how far off the UPWARD pin was. With *Use Places Fallback* on, building or shop names are found through Places. |
+| TC-03 | Real customer addresses that don't match Google exactly | Take 10–20 real customer addresses, including ones where the UPWARD pin is known to be wrong | Suggested coordinates point to the real place (check in Google Maps, see §3). Different Distance shows how far off the UPWARD pin was. With Google, building or shop names are also found through Places (the fallback is always on). |
 | TC-04 | Nonsense address | `asdfgh 99999` | Toast *No suggestion*; fields stay blank. The debug log shows `No Google Maps result`. |
 | TC-05 | Blank address | oggLocation whose Account has an empty `Address__c` | Toast *No suggestion*. No callout; fields stay blank. |
 | TC-06 | Feature switched off | Uncheck *Enabled* in the custom setting and click the button | Error toast *Google Maps lookup is turned off…*; no job in Apex Jobs. Re-enable after the test. |
 | TC-07 | Invalid API key | Put a wrong key in the setting and click the button | Toast *No suggestion*; record unchanged. The log shows `Geocoding API status REQUEST_DENIED`. Restore the key. |
-| TC-08 | Automatic lookup on create | Create a new Account with a Thai address so UPWARD creates the oggLocation (or run the test-data script). Don't click anything | Within a few seconds to a minute, the new oggLocation has suggested values and `isCoordsUpdated__c` checked; **Setup → Apex Jobs** shows an `AccountLocationGeocodeQueueable`. Then check *Disable Lookup On Create*, create another one: it stays empty until the "Suggest Locations" global action or the nightly run processes it. Uncheck the setting afterwards. |
+| TC-08 | Automatic lookup on create | Create a new Account with a Thai address so UPWARD creates the oggLocation (or run the test-data script). Don't click anything | Within a few seconds to a minute, the new oggLocation has suggested values and `isCoordsUpdated__c` checked; **Setup → Apex Jobs** shows an `AccountLocationGeocodeQueueable`.  |
 | TC-09 | Click again after UPWARD changes its pin | Change the original Lat/Lng (or wait for UPWARD to update it), click the button again | Suggested values and Different Distance are refreshed. If you set the original Lat/Lng to the suggested values first, the distance is 0. |
 | TC-10 | Double click | Click the button twice quickly | Only one lookup runs; one result toast. |
 | TC-11 | Non-admin user | Repeat TC-01 as a standard sales user with the permission set | Same result. Without the permission set, the button shows an error. |
@@ -160,7 +160,7 @@ Edit the address in `scripts/apex/test-geocode-address.apex`, then run:
 sf apex run --file scripts/apex/test-geocode-address.apex --target-org tterakit-sb
 ```
 
-The output first shows the query variants built from the Thai address (`withoutUnit`, `streetLevel`, `postcode`). Then it shows the chosen result: its source (`GEOCODING_API` or `PLACES_TEXT_SEARCH`), the query that produced it, `location_type`, `partial_match`, `postcode` / `postcodeMatch`, and Google's formatted address. Use it to tune *Country Code*, *Region*, *Language* and *Use Places Fallback*.
+The output first shows the query variants built from the Thai address (`withoutUnit`, `streetLevel`, `postcode`). Then it shows the chosen result: its source (`GEOCODING_API` or `PLACES_TEXT_SEARCH`), the query that produced it, `location_type`, `partial_match`, `postcode` / `postcodeMatch`, and Google's formatted address. Use it to see why a result was chosen.
 
 ---
 
@@ -168,7 +168,7 @@ The output first shows the query variants built from the Thai address (`withoutU
 
 | Symptom | Check |
 |---|---|
-| New records aren't looked up automatically | *Disable Lookup On Create* is checked, the feature is off, or the record was inserted with `isCoordsUpdated__c` already checked. Also check the debug log for `no background job slot left` (UPWARD inserting from async code). The "Suggest Locations" global action or the nightly run will catch them up. |
+| New records aren't looked up automatically | The feature is off (*Enabled* unchecked), or the record was inserted with `isCoordsUpdated__c` already checked. Also check the debug log for `no background job slot left` (UPWARD inserting from async code). The "Suggest Locations" global action or the nightly run will catch them up. |
 | Action missing | Global action: add **Suggest Locations** to the Global Publisher Layout, and check *Publisher Layout Assignment* for the user's profile. Record button: add it to the oggLocation page layout / Lightning page. See DEPLOYMENT_GUIDE 3.5 and 3.5b. |
 | Batch Completed but some records still empty | Those addresses are blank or weren't found (their `isCoordsUpdated__c` stays unchecked, so they're retried next run); check the debug log of the user who started it. With OpenStreetMap, only 200 records are processed per run. |
 | A record is never picked up by the nightly run / global action | Its `isCoordsUpdated__c` is already checked. Untick it, or use the record button. |
@@ -180,7 +180,7 @@ The output first shows the query variants built from the Thai address (`withoutU
 | `OpenStreetMap Nominatim HTTP 403` / `429` | Nominatim refused or rate-limited the org. Wait a few minutes and click less often. If 403 persists, Nominatim may be blocking Salesforce's shared IPs. Use Google instead. |
 | `field "..." does not exist on ogg__Location__c` | *Original Latitude/Longitude Field* in the setting is wrong. |
 | `Different_Distance__c` blank but Suggested filled | The original coordinates were empty when the job ran. Click the button again once UPWARD has set them. |
-| Wrong country results | Set *Country Code* = `TH` and *Region* = `th`. |
+| Wrong country results | Results are restricted to Thailand in code (`GoogleMapsSettings.COUNTRY_CODE`); include the province and postcode in the address. |
 | Result in a different district | The postcode check should catch it (`postcodeMatch=false` in the probe script). Make sure the address ends with the 5-digit postcode, and turn on *Use Places Fallback*. |
 | A room/floor/building pattern isn't removed | Run the probe script to see `withoutUnit` / `streetLevel`. Add the pattern to `ThaiAddressNormalizer` (`ROOM_PATTERN`, `FLOOR_PATTERN`, `BUILDING_PATTERN`) with a test in `ThaiAddressNormalizerTest`. |
 

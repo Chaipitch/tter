@@ -14,12 +14,8 @@ public without sharing class OpenStreetMapGeocoder {
         String url = SEARCH_ENDPOINT
             + '?q=' + EncodingUtil.urlEncode(query, 'UTF-8')
             + '&format=jsonv2&limit=1&addressdetails=1';
-        if (GoogleMapsSettings.countryCode() != null) {
-            url += '&countrycodes=' + EncodingUtil.urlEncode(GoogleMapsSettings.countryCode().toLowerCase(), 'UTF-8');
-        }
-        if (GoogleMapsSettings.language() != null) {
-            url += '&accept-language=' + EncodingUtil.urlEncode(GoogleMapsSettings.language(), 'UTF-8');
-        }
+        url += '&countrycodes=' + EncodingUtil.urlEncode(GoogleMapsSettings.countryCode().toLowerCase(), 'UTF-8')
+            + '&accept-language=' + EncodingUtil.urlEncode(GoogleMapsSettings.language(), 'UTF-8');
 
         HttpRequest req = new HttpRequest();
         req.setEndpoint(url);

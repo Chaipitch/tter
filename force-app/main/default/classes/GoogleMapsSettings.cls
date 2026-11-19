@@ -10,6 +10,14 @@ public without sharing class GoogleMapsSettings {
     @TestVisible private static final Integer DEFAULT_TIMEOUT_MS = 10000;
     @TestVisible private static final Integer MAX_TIMEOUT_MS     = 120000;
 
+    /** Thailand-only feature: results restricted to Thailand, returned in Thai. */
+    public static final String COUNTRY_CODE = 'TH';
+    public static final String LANGUAGE = 'th';
+    /** Google only: Places API (New) Text Search as the 3rd search step (ignored if the API isn't enabled). */
+    @TestVisible private static Boolean placesFallbackOn = true;
+    /** AccountLocationTrigger looks up new oggLocations. For data loads: uncheck Enabled, or set the trigger bypass. */
+    @TestVisible private static Boolean lookupOnCreateOn = true;
+
     @TestVisible private static Google_Maps_Settings__c cached;
 
     public static Google_Maps_Settings__c get() {
@@ -42,14 +50,12 @@ public without sharing class GoogleMapsSettings {
     }
 
     public static String apiKey()   { return get().API_Key__c; }
-    public static String region()   { return trimToNull(get().Region__c); }
-    public static String countryCode() { return trimToNull(get().Country_Code__c); }
-    public static String language() { return trimToNull(get().Language__c); }
-    public static Boolean usePlacesFallback() { return get().Use_Places_Fallback__c == true; }
+    public static String countryCode() { return COUNTRY_CODE; }
+    public static String language() { return LANGUAGE; }
+    public static Boolean usePlacesFallback() { return placesFallbackOn; }
 
-    /** Automatic lookup when an oggLocation is created (AccountLocationTrigger): on unless Disable_Lookup_On_Create__c. */
     public static Boolean lookupOnCreate() {
-        return isEnabled() && get().Disable_Lookup_On_Create__c != true;
+        return isEnabled() && lookupOnCreateOn;
     }
 
     public static Integer batchSize() {

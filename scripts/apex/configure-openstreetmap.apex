@@ -8,9 +8,6 @@ if (s == null || s.Id == null) {
 }
 s.Enabled__c                  = true;
 s.Provider__c                 = 'OpenStreetMap';
-s.Country_Code__c             = 'TH';
-s.Disable_Lookup_On_Create__c = false;         // true = no automatic lookup when an oggLocation is created
-s.Language__c                 = 'th';
 s.Original_Latitude_Field__c  = 'ogg__Latitude__c';
 s.Original_Longitude_Field__c = 'ogg__Longitude__c';
 s.Batch_Size__c               = 10;          // capped at 10 for OpenStreetMap anyway

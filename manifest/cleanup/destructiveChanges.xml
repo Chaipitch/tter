@@ -6,10 +6,20 @@
       (replaced by the "Suggest Locations" global action)
     - the older oggLocation list view button + page AccountLocationGeocodeList + its controller
       (could never be placed on the managed object)
+    - Google Maps Settings fields that became fixed values in Apex (GoogleMapsSettings): Country Code (TH),
+      Language (th), Region (removed), Use Places Fallback (on), Disable Lookup On Create (off)
   Remove the Account button from Account's List View Button Layout first. See docs/DEPLOYMENT_GUIDE.md, 7.
   Components that don't exist in the org are reported as warnings and skipped.
 -->
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>Google_Maps_Settings__c.Country_Code__c</members>
+        <members>Google_Maps_Settings__c.Language__c</members>
+        <members>Google_Maps_Settings__c.Region__c</members>
+        <members>Google_Maps_Settings__c.Use_Places_Fallback__c</members>
+        <members>Google_Maps_Settings__c.Disable_Lookup_On_Create__c</members>
+        <name>CustomField</name>
+    </types>
     <types>
         <members>Account.Suggest_Locations_Google</members>
         <members>ogg__Location__c.Suggest_Locations_Google</members>

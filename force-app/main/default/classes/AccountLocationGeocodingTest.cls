@@ -17,9 +17,9 @@ private class AccountLocationGeocodingTest {
             SetupOwnerId = UserInfo.getOrganizationId(),
             Enabled__c = enabled,
             API_Key__c = 'TEST_KEY',
-            Batch_Size__c = 30,
-            Use_Places_Fallback__c = false);
+            Batch_Size__c = 30);
         GoogleMapsSettings.cached = null;
+        GoogleMapsSettings.placesFallbackOn = false;
         // Tests below exercise the buttons / batch: keep the on-create trigger out of the way.
         // Trigger tests switch it back on explicitly.
         AccountLocationTriggerHandler.bypass = true;
@@ -151,9 +151,9 @@ private class AccountLocationGeocodingTest {
         insert new Google_Maps_Settings__c(
             SetupOwnerId = UserInfo.getOrganizationId(),
             Enabled__c = true,
-            API_Key__c = 'TEST_KEY',
-            Disable_Lookup_On_Create__c = true);
+            API_Key__c = 'TEST_KEY');
         GoogleMapsSettings.cached = null;
+        GoogleMapsSettings.lookupOnCreateOn = false;   // automatic lookup on create switched off
         GoogleMapsCalloutMock mock = mockPreciseResult();
         Account acc = newAccount(THAI_ADDRESS);
 
@@ -164,7 +164,7 @@ private class AccountLocationGeocodingTest {
 
         ogg__Location__c rec = reload(loc.Id);
         Assert.isNull(rec.Suggested_Latitude__c);
-        Assert.isFalse(rec.isCoordsUpdated__c, 'Left for the list view button / nightly run');
+        Assert.isFalse(rec.isCoordsUpdated__c, 'Left for the global action / nightly run');
         Assert.areEqual(0, mock.requests.size());
         Assert.isTrue(GoogleMapsSettings.isEnabled(), 'The buttons still work');
         Assert.isFalse(GoogleMapsSettings.lookupOnCreate());

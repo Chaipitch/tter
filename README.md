@@ -2,7 +2,7 @@
 
 This SFDX project checks the Account's single-field address of `ogg__Location__c` records against Google Maps in the background, and stores Google's coordinates next to the ones UPWARD saved. Ways it runs:
 
-* **Automatically when an oggLocation is created** (trigger, after insert). Can be switched off with *Disable Lookup On Create* in the custom setting, for example during a large data load.
+* **Automatically when an oggLocation is created** (trigger, after insert). For a large data load, uncheck *Enabled* in Google Maps Settings during the load (or set `AccountLocationTriggerHandler.bypass = true` if the load runs in Apex).
 * **"Suggest Locations" global action** (**+** in the header, works in every app including managed ones): a modal that floats over the current page (e.g. the Account list view). It shows how many oggLocations aren't processed yet (`isCoordsUpdated__c` unchecked), and **Start** processes all of them with Batch Apex, with a progress bar, a summary and a toast. Each processed record gets `isCoordsUpdated__c` = true, so it isn't processed again.
 * **Scheduled run** (for example nightly) over all records not processed yet: `scripts/apex/schedule-nightly.apex`.
 * **Record button "Suggest Location (Google)"**: one record, with the result shown in a toast.

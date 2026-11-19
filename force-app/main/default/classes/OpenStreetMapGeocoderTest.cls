@@ -9,10 +9,8 @@ private class OpenStreetMapGeocoderTest {
         GoogleMapsSettings.cached = new Google_Maps_Settings__c(
             Enabled__c = true,
             Provider__c = 'OpenStreetMap',
-            Country_Code__c = 'TH',
-            Language__c = 'th',
-            Batch_Size__c = 30,
-            Use_Places_Fallback__c = true);
+            Batch_Size__c = 30);
+        GoogleMapsSettings.placesFallbackOn = true;
     }
 
     private static GoogleMapsCalloutMock mock() {
@@ -69,7 +67,7 @@ private class OpenStreetMapGeocoderTest {
 
     @IsTest
     static void areaResultTriesStreetLevelAndNeverCallsGoogle() {
-        configureOsm();   // Use_Places_Fallback__c is on, but must be ignored for OpenStreetMap
+        configureOsm();   // the Places fallback is on, but must be ignored for OpenStreetMap
         GoogleMapsCalloutMock m = mock();
         m.osmBodies.add(GoogleMapsCalloutMock.osmOk(13.72, 100.57, 16, '10110'));     // district level
         m.osmBodies.add(GoogleMapsCalloutMock.osmOk(13.7301, 100.5690, 26, '10110')); // street level
@@ -124,8 +122,7 @@ private class OpenStreetMapGeocoderTest {
         insert new Google_Maps_Settings__c(
             SetupOwnerId = UserInfo.getOrganizationId(),
             Enabled__c = true,
-            Provider__c = 'OpenStreetMap',
-            Country_Code__c = 'TH');
+            Provider__c = 'OpenStreetMap');
         GoogleMapsSettings.cached = null;
         AccountLocationTriggerHandler.bypass = true;   // this test drives the record button
         GoogleMapsCalloutMock m = mock();
