@@ -132,7 +132,7 @@ If the validation passed, you can quick-deploy it instead: `sf project deploy qu
 
 ### 3.4 Assign the permission set
 
-The permission set lets users use both buttons and read the three suggested/distance fields. It grants access to the Apex classes `AccountLocationGeocodeAction` and `SuggestLocationsFromAccountsController`, and to the Visualforce page `SuggestLocationsFromAccounts`.
+The permission set lets users use both buttons and the utility bar panel, and read the three suggested/distance fields. It grants access to the Apex classes `AccountLocationGeocodeAction`, `SuggestLocationsFromAccountsController` and `SuggestLocationsPanelController`, and to the Visualforce page `SuggestLocationsFromAccounts`.
 
 ```bash
 sf org assign permset --name AccountLocation_Geocoding --target-org tterakit-sb
@@ -154,6 +154,17 @@ Both buttons are deployed, but they only show once they're placed.
 * **Lightning record page with Dynamic Actions:** Lightning App Builder → select the Highlights Panel → **Add Action** → *Suggest Location (Google)* → Save.
 
 Also add `Suggested Latitude`, `Suggested Longtitude` and `Different Distance` to the layout and, if useful, to list views.
+
+### 3.5b Add the "Suggest Locations" utility bar panel (floats over the Account list view)
+
+A list view button can't open a floating window in Lightning, so the floating version of the bulk lookup is a **utility bar** item. It's a panel at the bottom of the app that opens over any page, including the Account list view.
+
+1. Setup → **App Manager** → the Lightning app your users work in (for example *Sales*) → ▼ → **Edit**.
+2. **Utility Items (Desktop Only)** → **Add Utility Item** → choose **Suggest Locations** (custom component).
+3. Optional: set the *Panel Width* (e.g. 420) and *Panel Height* (e.g. 520), and the icon (e.g. `location`). Tick **Start automatically** so it keeps following a run while the panel is closed.
+4. **Save**.
+
+The panel shows how many oggLocations aren't processed yet. **Start** runs the bulk lookup; the panel shows a progress bar (every 5 s), and when the run finishes, a summary and a toast. It keeps following the run while you navigate, and it picks up a run you started earlier when you open it again. Users need the `AccountLocation_Geocoding` permission set (step 3.4).
 
 ### 3.6 Optional: nightly run
 

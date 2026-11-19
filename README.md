@@ -1,9 +1,10 @@
 # AccountLocation – Google Maps Suggested Coordinates
 
-This SFDX project checks the Account's single-field address of `ogg__Location__c` records against Google Maps in the background, and stores Google's coordinates next to the ones UPWARD saved. Four ways it runs:
+This SFDX project checks the Account's single-field address of `ogg__Location__c` records against Google Maps in the background, and stores Google's coordinates next to the ones UPWARD saved. Ways it runs:
 
 * **Automatically when an oggLocation is created** (trigger, after insert). Can be switched off with *Disable Lookup On Create* in the custom setting, for example during a large data load.
 * **Account list view button "Suggest Locations (Google)"**: processes **all oggLocations not processed yet (`isCoordsUpdated__c` unchecked)**, whichever Accounts are selected. It lives on Account because oggLocation belongs to a managed package. Runs as Batch Apex, with a progress bar and a summary when it's finished. Each processed record gets `isCoordsUpdated__c` = true, so it isn't processed again.
+* **"Suggest Locations" utility bar panel**: the same bulk run in a panel that floats over any page (e.g. the Account list view), with progress, a summary and a toast. It keeps following the run while you navigate.
 * **Scheduled run** (for example nightly) over all records not processed yet: `scripts/apex/schedule-nightly.apex`.
 * **Record button "Suggest Location (Google)"**: one record, with the result shown in a toast.
 
@@ -50,6 +51,8 @@ force-app/main/default/
 ├── classes/
 │   ├── AccountLocationGeocodeBatch.cls       BULK: Batch Apex over selected / all records not processed yet; Schedulable
 │   ├── SuggestLocationsFromAccountsController.cls  Account list view button page controller
+│   ├── SuggestLocationsPanelController.cls   utility bar panel Apex (overview, start, status)
+│   ├── LocationLookupRunService.cls          shared: count, running job, progress + summary
 │   ├── AccountLocationGeocodeProcessor.cls   shared: find address, geocode, save (used by batch + queueable)
 │   ├── AccountLocationTriggerHandler.cls     on create: queue the lookup for new records
 │   ├── AccountLocationGeocodeAction.cls      record button Apex: start the job, report its status
@@ -70,6 +73,7 @@ force-app/main/default/
 ├── triggers/AccountLocationTrigger.trigger   after insert on ogg__Location__c
 ├── pages/SuggestLocationsFromAccounts.page   Account list view button confirmation page
 ├── objects/Account/webLinks/Suggest_Locations_Google   the Account list view button
+├── lwc/suggestLocationsPanel/                utility bar panel (floats over any page)
 ├── lwc/suggestGoogleLocation/                headless quick action (button → job → toast)
 ├── quickActions/ogg__Location__c.Suggest_Google_Location   the "Suggest Location (Google)" button
 ├── objects/Google_Maps_Settings__c/          hierarchy custom setting (API key, switches, field mapping)

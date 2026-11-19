@@ -1,0 +1,72 @@
+<template>
+    <div class="slds-p-around_medium">
+        <template lwc:if={loading}>
+            <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+        </template>
+
+        <template lwc:if={error}>
+            <p class="slds-text-color_error slds-m-bottom_small">{error}</p>
+        </template>
+
+        <!-- feature off -->
+        <template lwc:if={disabledMessage}>
+            <p class="slds-m-bottom_small">
+                Location lookup is turned off. Ask your administrator to enable <b>Google Maps Settings</b>
+                (and add an API key, or set Provider to OpenStreetMap).
+            </p>
+        </template>
+
+        <!-- before Start -->
+        <template lwc:if={showIntro}>
+            <p class="slds-text-heading_large">{countLabel}</p>
+            <p class="slds-m-bottom_small">oggLocation record(s) not processed yet</p>
+            <p class="slds-text-color_weak slds-m-bottom_small">
+                Start looks up all of them (isCoordsUpdated unchecked) in the background. You can keep working
+                and navigate; this panel keeps following the run. To process a record again, untick its
+                isCoordsUpdated or use the "Suggest Location (Google)" button on the record.
+            </p>
+            <template lwc:if={openStreetMap}>
+                <p class="slds-text-color_error slds-m-bottom_small">
+                    Provider is OpenStreetMap (temporary, testing only): at most {openStreetMapLimit} records are
+                    processed per run.
+                </p>
+            </template>
+            <div class="slds-grid slds-grid_vertical-align-center">
+                <lightning-button variant="brand" label="Start" onclick={handleStart}
+                                  disabled={startDisabled}></lightning-button>
+                <lightning-button-icon icon-name="utility:refresh" alternative-text="Refresh count"
+                                       class="slds-m-left_x-small" onclick={handleRefresh}></lightning-button-icon>
+            </div>
+        </template>
+
+        <!-- running / finished -->
+        <template lwc:if={showRun}>
+            <p class="slds-m-bottom_x-small"><b>{statusLabel}</b></p>
+            <lightning-progress-bar value={percent} size="large" variant="circular"
+                                    class="slds-m-bottom_x-small"></lightning-progress-bar>
+            <p class="slds-text-color_weak slds-m-bottom_medium">{progressText}</p>
+
+            <template lwc:if={finished}>
+                <h2 class="slds-text-heading_small slds-m-bottom_x-small">Summary</h2>
+                <table class="slds-table slds-table_bordered slds-table_cell-buffer slds-m-bottom_small">
+                    <tbody>
+                        <tr><td>Updated with a suggested location</td>
+                            <td class="slds-text-align_right"><b>{status.updatedCount}</b></td></tr>
+                        <tr><td>… more than {farDistanceMeters} m from UPWARD's pin (worth checking)</td>
+                            <td class="slds-text-align_right">{status.farCount}</td></tr>
+                        <tr><td>… without a distance (UPWARD's pin empty or invalid)</td>
+                            <td class="slds-text-align_right">{status.noDistanceCount}</td></tr>
+                        <tr><td>Still not processed (blank or unfindable address, or failed; retried next run)</td>
+                            <td class="slds-text-align_right">{status.remainingCount}</td></tr>
+                        <tr><td>Batches failed (see Setup &gt; Apex Jobs)</td>
+                            <td class="slds-text-align_right">{status.batchesFailed}</td></tr>
+                    </tbody>
+                </table>
+                <template lwc:if={hasFailures}>
+                    <p class="slds-text-color_error slds-m-bottom_small">{status.message}</p>
+                </template>
+                <lightning-button label="Done" variant="brand" onclick={handleNewRun}></lightning-button>
+            </template>
+        </template>
+    </div>
+</template>

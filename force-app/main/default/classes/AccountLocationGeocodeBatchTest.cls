@@ -1,6 +1,7 @@
 /**
  * Bulk processing: AccountLocationGeocodeBatch (selected records / all not processed yet / scheduled)
- * and the Account list view button controller SuggestLocationsFromAccountsController.
+ * the Account list view button controller SuggestLocationsFromAccountsController, and the utility bar
+ * panel controller SuggestLocationsPanelController (with LocationLookupRunService).
  */
 @IsTest
 private class AccountLocationGeocodeBatchTest {
@@ -264,5 +265,81 @@ private class AccountLocationGeocodeBatchTest {
         Assert.isFalse(ctrl.started);
         Assert.isTrue(ApexPages.hasMessages(ApexPages.Severity.ERROR));
         Assert.areEqual(200, ctrl.openStreetMapLimit);
+    }
+
+    // ------------------------------------------------------------------ utility bar panel
+
+    @IsTest
+    static void panelOverviewStartAndSummary() {
+        configure(true, null);
+        GoogleMapsCalloutMock m = mockGoogle();
+        List<ogg__Location__c> locs = createLocations(3, 0);
+
+        Map<String, Object> overview = SuggestLocationsPanelController.getOverview();
+        Assert.areEqual(true, overview.get('enabled'));
+        Assert.areEqual(false, overview.get('openStreetMap'));
+        Assert.areEqual(3, overview.get('unprocessedCount'));
+        Assert.areEqual(false, overview.get('moreThanCounted'));
+        Assert.areEqual(LocationLookupRunService.FAR_DISTANCE_METERS, overview.get('farDistanceMeters'));
+        Assert.isFalse(overview.containsKey('runningJob'), 'Nothing running yet');
+
+        Test.startTest();
+        Map<String, Object> run = SuggestLocationsPanelController.startRun();
+        Id jobId = (Id) run.get('jobId');
+        Long startedAtMs = (Long) run.get('startedAtMs');
+        Assert.isNotNull(jobId);
+        Assert.areEqual(3, run.get('recordsInRun'));
+
+        // While it is queued: the panel can pick the run up again (e.g. after reopening)
+        Map<String, Object> again = SuggestLocationsPanelController.getOverview();
+        Assert.isTrue(again.containsKey('runningJob'));
+        Assert.areEqual(jobId, ((Map<String, Object>) again.get('runningJob')).get('jobId'));
+        LocationLookupRunService.RunStatus queued = SuggestLocationsPanelController.getStatus(jobId, startedAtMs, 3);
+        Assert.isFalse(queued.finished);
+        Assert.isNull(queued.updatedCount, 'No summary before it has finished');
+        Test.stopTest();
+
+        LocationLookupRunService.RunStatus done = SuggestLocationsPanelController.getStatus(jobId, startedAtMs, 3);
+        Assert.isTrue(done.finished);
+        Assert.areEqual('Completed', done.status);
+        Assert.areEqual(100, done.percent);
+        Assert.areEqual(3, done.recordsDoneApprox);
+        Assert.areEqual(3, done.updatedCount);
+        Assert.areEqual(3, done.farCount);         // ~560 m from the test pin
+        Assert.areEqual(0, done.noDistanceCount);
+        Assert.areEqual(0, done.remainingCount);
+        Assert.areEqual(0, done.batchesFailed);
+        Assert.areEqual(3, countWithSuggestion(locs, SUGGESTED_LAT));
+        Assert.areEqual(3, m.requests.size());
+        Assert.isFalse(SuggestLocationsPanelController.getOverview().containsKey('runningJob'), 'Finished: not running');
+    }
+
+    @IsTest
+    static void panelStartRefusedWhenOffOrNothingToDo() {
+        configure(false, null);
+        try {
+            SuggestLocationsPanelController.startRun();
+            Assert.fail('Expected AuraHandledException');
+        } catch (AuraHandledException e) {
+            Assert.isTrue(e.getMessage().contains('turned off'), e.getMessage());
+        }
+
+        GoogleMapsSettings.cached = new Google_Maps_Settings__c(Enabled__c = true, API_Key__c = 'TEST_KEY');
+        try {
+            SuggestLocationsPanelController.startRun();   // no oggLocations at all
+            Assert.fail('Expected AuraHandledException');
+        } catch (AuraHandledException e) {
+            Assert.isTrue(e.getMessage().contains('no oggLocation records'), e.getMessage());
+        }
+    }
+
+    @IsTest
+    static void runServiceHandlesMissingJobAndOpenStreetMapCap() {
+        configure(true, 'OpenStreetMap');
+        LocationLookupRunService.RunStatus none = SuggestLocationsPanelController.getStatus(null, null, null);
+        Assert.areEqual('Unknown', none.status);
+        Assert.isFalse(none.finished);
+        Assert.areEqual(200, LocationLookupRunService.recordsForRun(5000), 'OpenStreetMap runs are capped');
+        Assert.areEqual(12, LocationLookupRunService.recordsForRun(12));
     }
 }
