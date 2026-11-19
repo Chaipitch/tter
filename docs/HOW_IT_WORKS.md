@@ -77,7 +77,9 @@ All bulk runs process **all oggLocations with `isCoordsUpdated__c` = false** (no
   * **while it runs:** a progress bar with *batch N of M, about X of Y records*, or *waiting to start* while the job is queued behind other background jobs.
   * **when it's finished:** a summary of oggLocations updated in this run, how many of them are more than 500 m from UPWARD's pin (`FAR_DISTANCE_METERS`) or have no distance, how many are still not processed (blank or unfindable address, or the lookup failed; retried next run), and failed batches. The summary is counted from the data (records flagged since the run started, and records still unflagged), so records the on-create trigger processes at the same moment are included.
 
-  **Back to list** returns to the list view. Leaving the page doesn't stop the run; it continues in the background.
+  * **toast:** when it's finished, the page also shows a Lightning toast with the same numbers (green, or orange if batches failed). It appears only while this page is open, and only in Lightning Experience.
+
+  **Back to list** returns to the list view. Leaving the page doesn't stop the run; it continues in the background. There's no toast or notification then; check Setup → Apex Jobs or run the button again to see the count.
 * **Schedule:** `AccountLocationGeocodeBatch` is also `Schedulable`. `scripts/apex/schedule-nightly.apex` schedules it at 02:00 every night, for all records not processed yet. New records are then filled in overnight without anyone clicking.
 * **Script:** `scripts/apex/regeocode-existing.apex` starts the same "all not processed yet" run.
 

@@ -72,7 +72,7 @@
                             <tbody>
                                 <tr><td>Updated with a suggested location</td>
                                     <td class="slds-text-align_right"><b>{!updatedCount}</b></td></tr>
-                                <tr><td>&#160;&#160;&#8230; more than {!FAR_DISTANCE_METERS} m from UPWARD's pin (worth checking)</td>
+                                <tr><td>&#160;&#160;&#8230; more than {!farDistanceMeters} m from UPWARD's pin (worth checking)</td>
                                     <td class="slds-text-align_right">{!farCount}</td></tr>
                                 <tr><td>&#160;&#160;&#8230; without a distance (UPWARD's pin empty or invalid)</td>
                                     <td class="slds-text-align_right">{!noDistanceCount}</td></tr>
@@ -85,6 +85,23 @@
                         <apex:outputPanel rendered="{!NOT(ISBLANK(jobMessage))}">
                             <p class="slds-text-color_error slds-m-bottom_small">{!jobMessage}</p>
                         </apex:outputPanel>
+                        <!-- Lightning toast when the run has finished (only in Lightning Experience, once per run) -->
+                        <script>
+                            (function () {
+                                var key = 'geoToast_{!jobId}';
+                                if (window[key] || typeof sforce === 'undefined' || !sforce.one || !sforce.one.showToast) {
+                                    return;
+                                }
+                                window[key] = true;
+                                sforce.one.showToast({
+                                    title: 'Location lookup finished',
+                                    message: '{!updatedCount} updated ({!farCount} more than {!farDistanceMeters} m from UPWARD\'s pin), '
+                                        + '{!remainingCount} still not processed'
+                                        + ({!batchesFailed} > 0 ? ', {!batchesFailed} batch(es) failed' : '') + '.',
+                                    type: {!batchesFailed} > 0 ? 'warning' : 'success'
+                                });
+                            })();
+                        </script>
                         <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_small">
                             Counted from the data: oggLocations flagged since this run started (records the
                             on-create trigger processed at the same time are included) and those still unflagged.

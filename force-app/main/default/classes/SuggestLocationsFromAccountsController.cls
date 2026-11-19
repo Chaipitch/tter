@@ -57,6 +57,11 @@ public with sharing class SuggestLocationsFromAccountsController {
         get { return GoogleMapsSettings.isEnabled(); }
     }
 
+    /** FAR_DISTANCE_METERS for the page (Visualforce reads instance properties only). */
+    public Integer farDistanceMeters {
+        get { return FAR_DISTANCE_METERS; }
+    }
+
     public Boolean openStreetMap {
         get { return GoogleMapsSettings.useOpenStreetMap(); }
     }

@@ -211,6 +211,7 @@ private class AccountLocationGeocodeBatchTest {
         Assert.areEqual(3, ctrl.farCount);
         Assert.areEqual(0, ctrl.noDistanceCount);
         Assert.areEqual(0, ctrl.remainingCount);
+        Assert.areEqual(SuggestLocationsFromAccountsController.FAR_DISTANCE_METERS, ctrl.farDistanceMeters);
 
         Assert.areEqual(3, countWithSuggestion(locs, SUGGESTED_LAT));
         Assert.areEqual(3, m.requests.size());
