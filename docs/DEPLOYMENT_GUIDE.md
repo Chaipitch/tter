@@ -63,7 +63,7 @@ The running user needs no access to the target fields. The job runs in system mo
 `AccountLocationTrigger` (after insert on `ogg__Location__c`) is part of the deployment. It looks up every new oggLocation automatically.
 
 * **Other triggers:** if your org or UPWARD has other triggers on `ogg__Location__c`, they keep working. This one only queues a background job and doesn't change the record during the insert.
-* **Before a large data load:** check *Disable Lookup On Create* in Google Maps Settings (step 4). Afterwards, process the loaded records with the "Suggest Locations" global action or the nightly run, then uncheck it again.
+* **Before a large data load:** uncheck *Enabled* in Google Maps Settings during the load (or set `AccountLocationTriggerHandler.bypass = true` if the load runs in Apex). Afterwards, check *Enabled* again and process the loaded records with the "Suggest Locations" global action or the nightly run, then uncheck it again.
 * **The removed `destructiveChanges.xml`:** an earlier version of this project used it to delete the trigger. It has been removed, so the trigger can't be deleted by accident. Don't use an old copy.
 
 ---
@@ -229,15 +229,12 @@ Go to **Setup → Custom Settings → Google Maps Settings → Manage → New** 
 | Enabled | ✔ |
 | Provider | `Google` (or blank). `OpenStreetMap` = temporary no-key option, see above |
 | API Key | your key (not needed for OpenStreetMap) |
-| Use Places Fallback | ✔ if Places API (New) is enabled |
-| Disable Lookup On Create | ☐ (unchecked = new records are looked up automatically; check it before large data loads) |
-| Country Code | `TH` (restricts Geocoding results to Thailand) |
-| Region | `th` (biases results to Thailand) |
-| Language | `th` (results come back in Thai, matching the Thai input) |
 | Original Latitude Field | `ogg__Latitude__c` |
 | Original Longitude Field | `ogg__Longitude__c` |
 | Batch Size | `30` (max 30, because one address can take up to 3 callouts) |
 | Timeout (ms) | `10000` |
+
+Fixed in Apex (`GoogleMapsSettings`), not settings: results restricted to Thailand (`TH`) and returned in Thai (`th`); the Places API fallback is on (Google only; if Places API isn't enabled on the key, the Geocoding result is used); new records are looked up automatically by the trigger.
 
 The Remote Site Settings `Google_Maps_Geocoding_API`, `Google_Places_API` and `OpenStreetMap_Nominatim` are deployed by the project. Check that they're active under **Setup → Remote Site Settings**.
 
@@ -271,7 +268,7 @@ A line like `source=GEOCODING_API lat=13.74... lng=100.53...` in the output mean
 ## 7. Rollback
 
 * **Quick off switch:** uncheck `Enabled__c` in the custom setting. The trigger does nothing, the record button and the global action say the lookup is turned off, and a running batch stops making calls at its next chunk.
-* **Only stop the automatic lookup on create:** check *Disable Lookup On Create*. The buttons and the nightly run keep working.
+* **Only stop the automatic lookup on create:** set `AccountLocationTriggerHandler.bypass = true` in the Apex that inserts, or permanently set `lookupOnCreateOn = false` in `GoogleMapsSettings` and deploy.
 * **Stop a running batch:** Setup → Apex Jobs → *Abort* on `AccountLocationGeocodeBatch`.
 * **Stop the nightly run:** Setup → Scheduled Jobs → *Suggest locations nightly* → Del.
 * **Hide the actions:** remove **Suggest Locations** from the Global Publisher Layout, and the record button from the oggLocation page layout / Lightning page.

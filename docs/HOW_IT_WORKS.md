@@ -56,7 +56,7 @@ This feature gives a second opinion, **for large numbers of records**. The addre
 
 * Callouts aren't allowed inside a trigger, so the trigger only collects the new record Ids and queues **one** `AccountLocationGeocodeQueueable` for the whole insert. The job runs a few seconds later. It processes *Batch Size* records per execution and chains itself for the rest, using the same processor as the buttons (§3.3).
 * It skips:
-  * everything, when the feature is off or *Disable Lookup On Create* is checked in the custom setting. Use that before a large data load, then process the loaded records with the "Suggest Locations" global action or the nightly run.
+  * everything, when the feature is off (*Enabled* unchecked). Use that during a large data load, then process the loaded records with the "Suggest Locations" global action or the nightly run.
   * everything, when `AccountLocationTriggerHandler.bypass = true` in Apex (data-load scripts, tests).
   * records inserted with `isCoordsUpdated__c` already checked.
   * everything, when the transaction has no background-job slot left. That can happen if UPWARD creates the records from code that's already asynchronous. A message goes to the debug log.
@@ -169,10 +169,10 @@ At most **3 calls** per address. Cheaper calls go first, and the search stops at
 |---|---|---|---|
 | 1 | Geocoding API (GET `maps.googleapis.com/maps/api/geocode/json`) | `withoutUnit` | best match for a full address |
 | 2 | Geocoding API | `streetLevel` (skipped if it's the same as #1) | building names sometimes confuse Geocoding |
-| 3 | Places API (New) Text Search (POST `places.googleapis.com/v1/places:searchText`), only if *Use Places Fallback* is on | `withoutUnit` | finds named places such as buildings, malls and shops |
+| 3 | Places API (New) Text Search (POST `places.googleapis.com/v1/places:searchText`), only with Google (always on; `GoogleMapsSettings.placesFallbackOn`) | `withoutUnit` | finds named places such as buildings, malls and shops |
 
 Request options come from the custom setting:
-* **Geocoding:** `components=country:TH` (*Country Code*), `region=th`, `language=th`.
+* **Geocoding:** `components=country:TH`, `language=th` (fixed in `GoogleMapsSettings`).
 * **Places:** `languageCode`, `regionCode`, and only the fields it needs (`places.location,places.formattedAddress,places.addressComponents`), to keep the cost down.
 
 ### 4.3 What counts as a "good" result
@@ -235,17 +235,14 @@ This is a hierarchy custom setting; only the **Organization Default** record is 
 | Enabled | off | Master switch for the whole feature |
 | Provider | Google | `OpenStreetMap` = temporary no-key provider (§4.5) |
 | API Key | — | Google Maps Platform key (not needed for OpenStreetMap) |
-| Country Code | — (set `TH`) | Restricts Geocoding results to that country |
-| Region | — (set `th`) | Biases results |
-| Language | — (set `th`) | Language of Google's formatted address |
-| Use Places Fallback | off (set on) | Enables search step 3 |
-| Disable Lookup On Create | off | When checked, the trigger doesn't look up new records (the buttons and the nightly run still work) |
 | Original Latitude Field / Original Longitude Field | `ogg__Latitude__c` / `ogg__Longitude__c` | Where UPWARD's pin is stored; checked against the object's fields |
 | Batch Size | 30 (max 30; max 10 with OpenStreetMap) | Records per background job |
 | Timeout (ms) | 10000 (max 120000) | Per-callout timeout |
 
 The Remote Site Settings `Google_Maps_Geocoding_API`, `Google_Places_API` and `OpenStreetMap_Nominatim` allow the three hosts.
 
+
+Fixed in Apex (`GoogleMapsSettings`), not in the setting: `COUNTRY_CODE = 'TH'` (Google `components=country:TH`, Places `regionCode`, OpenStreetMap `countrycodes=th`), `LANGUAGE = 'th'`, the Places fallback (on, Google only) and the lookup on create (on). Change them in code if ever needed.
 ---
 
 ## 7. Code map
@@ -279,7 +276,7 @@ The Remote Site Settings `Google_Maps_Geocoding_API`, `Google_Places_API` and `O
 | Batch Apex for bulk | Made for large volumes: each chunk has its own limits, any number of records, progress in Apex Jobs, and it can be scheduled. |
 | Bulk lookup as a **global action** (modal) | List view buttons can't open a floating window in Lightning, and the users' app is managed (no utility bar items). A global action works in every app and floats over the current page. It needs an Aura wrapper, because global actions can't host an LWC directly. |
 | A bulk run always takes everything not processed yet | Simple and covers any volume: it always processes every oggLocation with `isCoordsUpdated__c` = false. |
-| Trigger on insert **plus** global action and schedule | New records get a suggestion right away. The bulk paths cover existing records, records the trigger skipped, and re-checks, and they're the safe way to handle large data loads (with *Disable Lookup On Create*). |
+| Trigger on insert **plus** global action and schedule | New records get a suggestion right away. The bulk paths cover existing records, records the trigger skipped, and re-checks, and they're the safe way to handle large data loads (with *Enabled* unchecked during the load). |
 | The trigger only queues a job | Callouts aren't allowed in triggers; queuing keeps UPWARD's insert fast and unaffected by Google errors. |
 | Headless quick action (LWC) | One click, no dialog; it can report the result in a toast. |
 | Queueable for the record button | Starts at once (a batch can wait in the flex queue), and its status can be polled for the toast. |
@@ -300,7 +297,7 @@ The Remote Site Settings `Google_Maps_Geocoding_API`, `Google_Places_API` and `O
 
 * **Two address sources.** UPWARD pins the Billing Address; this feature looks up `Address__c` (the Billing Address only when `Address__c` is blank). If the two aren't the same address, a large `Different_Distance__c` may just mean the fields disagree, so check both before correcting a pin.
 * **Changed addresses aren't detected.** The trigger runs on insert only. Once `isCoordsUpdated__c` is true, a record is only re-checked when sent through the record button, or when its flag is unticked.
-* **Large inserts with the trigger on** queue one job per insert transaction (Data Loader: one per 200 records). That's fine for Google within its quota, but with OpenStreetMap many parallel jobs break Nominatim's 1-request-per-second rule. Check *Disable Lookup On Create* before big loads.
+* **Large inserts with the trigger on** queue one job per insert transaction (Data Loader: one per 200 records). That's fine for Google within its quota, but with OpenStreetMap many parallel jobs break Nominatim's 1-request-per-second rule. Uncheck *Enabled* during big loads.
 * **Unfindable records are retried.** Records with no result keep `isCoordsUpdated__c` = false and are tried again by every automatic run.
 * **Rule-based address cleaning.** Uncommon ways of writing room, floor or building may not be removed. Run `test-geocode-address.apex` to see what was sent, and add a pattern to `ThaiAddressNormalizer` with a test.
 * **40-second wait in the browser.** If Google or the job queue is slow, the toast says *Still running*; the job still finishes and the values appear after a refresh.

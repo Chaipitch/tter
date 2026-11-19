@@ -4,7 +4,7 @@
 
 The customer's single-field address (`Account.Address__c`, or the Billing Address when it's blank) of `ogg__Location__c` records is sent to Google Maps. Google's coordinates are written to `Suggested_Latitude__c` / `Suggested_Longtitude__c`, and the distance in meters from UPWARD's pin to `Different_Distance__c`. Processed records get `isCoordsUpdated__c` = true. Ways it runs:
 
-* **Automatically when an oggLocation is created** (`AccountLocationTrigger`, after insert). It can be switched off with *Disable Lookup On Create* in the custom setting, for example for large data loads.
+* **Automatically when an oggLocation is created** (`AccountLocationTrigger`, after insert). For a large data load, uncheck *Enabled* in Google Maps Settings during the load (or set `AccountLocationTriggerHandler.bypass = true` if the load runs in Apex).
 * **"Suggest Locations" global action** (**+** in the header): a modal that floats over the current page, for example the Account list view in the managed app. **Start** processes **all oggLocations not processed yet** (`isCoordsUpdated__c` unchecked) with Batch Apex, with progress, a summary and a toast.
 * **Nightly schedule** (optional) over all records not processed yet.
 * **Record button "Suggest Location (Google)"**: one record, with the result in a toast.
@@ -58,7 +58,7 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
 6. **Accuracy and volume with Google:** run TC-03 (10–20 real customer addresses where UPWARD's pin is known to be wrong, checked in Google Maps), TC-07 and TC-14 (1,000+ records). Agree with the business what distance counts as wrong; the guide suggests over 50 m needs review and over 500 m is probably wrong. Records processed with OpenStreetMap are flagged and won't be picked up again automatically. To redo them with Google, untick their `isCoordsUpdated__c`.
 7. **Bulk-fill existing records:** the "Suggest Locations" global action, or `scripts/apex/regeocode-existing.apex`.
 8. **Nightly run** (optional, Google only): `scripts/apex/schedule-nightly.apex` (TC-15).
-9. **Production:** deploy with the six test classes, make sure `isCoordsUpdated__c` and the three target fields exist there, and use Google as the provider with a production API key and quota. Then do steps 2, 5, 7 and 8 (`manifest/cleanup` isn't needed: production never had the old buttons). **Check *Disable Lookup On Create* before bulk-filling existing records**, so a data migration doesn't also start the trigger, and uncheck it afterwards.
+9. **Production:** deploy with the six test classes, make sure `isCoordsUpdated__c` and the three target fields exist there, and use Google as the provider with a production API key and quota. Then do steps 2, 5, 7 and 8 (`manifest/cleanup` isn't needed: production never had the old buttons). **During a data migration, keep *Enabled* unchecked** (or bypass the trigger in Apex), so the inserts don't also start the trigger. Check it again afterwards, then bulk-fill with the global action.
 10. **Remove the OpenStreetMap option** once Google is in use (see limitation 6 below).
 
 ## Org facts the code relies on
@@ -95,7 +95,7 @@ Deploy and test commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#
 
 | Need | How |
 |---|---|
-| Stop only the automatic lookup on create (e.g. before a data load) | Check *Disable Lookup On Create* in Google Maps Settings; buttons and nightly run keep working. Apex: `AccountLocationTriggerHandler.bypass = true` |
+| Stop the automatic lookup on create (e.g. during a data load) | Uncheck *Enabled* in Google Maps Settings during the load (stops everything), or set `AccountLocationTriggerHandler.bypass = true` in the load's Apex. To turn the trigger off permanently, set `lookupOnCreateOn = false` in `GoogleMapsSettings` (code change) |
 | Switch off immediately | Uncheck *Enabled* in Setup → Custom Settings → Google Maps Settings. Both buttons then say it's turned off, and a running batch stops calling out at its next chunk |
 | Stop a running bulk run | Setup → Apex Jobs → *Abort* on `AccountLocationGeocodeBatch` |
 | Stop / change the nightly run | Setup → Scheduled Jobs → *Suggest locations nightly* |
@@ -110,7 +110,7 @@ Deploy and test commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#
 
 ## Known limitations / possible follow-ups
 
-1. **Changed addresses aren't detected.** The trigger runs on insert only. Once `isCoordsUpdated__c` is true, a record is only re-checked when sent through the record button or its flag is unticked. If UPWARD changes an address on an existing location, nothing resets the flag. Records with no result (blank or unfindable address) stay `false` and are retried by every automatic bulk run, at 1–3 requests each. With OpenStreetMap, large inserts queue parallel jobs that break Nominatim's 1-request-per-second rule, so check *Disable Lookup On Create* first.
+1. **Changed addresses aren't detected.** The trigger runs on insert only. Once `isCoordsUpdated__c` is true, a record is only re-checked when sent through the record button or its flag is unticked. If UPWARD changes an address on an existing location, nothing resets the flag. Records with no result (blank or unfindable address) stay `false` and are retried by every automatic bulk run, at 1–3 requests each. With OpenStreetMap, large inserts queue parallel jobs that break Nominatim's 1-request-per-second rule, so uncheck *Enabled* during big loads.
 2. **Address cleaning uses fixed rules.** New ways of writing room, floor or building can slip through. Add the pattern to `ROOM_PATTERN` / `FLOOR_PATTERN` / `BUILDING_PATTERN` in `ThaiAddressNormalizer`, with a case in `ThaiAddressNormalizerTest`. The patterns were checked in Java, which uses the same regex engine as Apex.
 3. **No audit fields.** The source used (Geocoding or Places), the query and the postcode match only go to the debug log. Fields for these would make reviewing easier.
 4. **40-second wait in the browser.** If the job queue is slow, the toast says *Still running*; the values appear after a refresh.

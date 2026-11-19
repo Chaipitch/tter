@@ -13,11 +13,8 @@ private class GoogleGeocodingServiceTest {
         // "You have uncommitted work pending".
         GoogleMapsSettings.cached = new Google_Maps_Settings__c(
             Enabled__c = true,
-            API_Key__c = 'TEST_KEY',
-            Country_Code__c = 'TH',
-            Region__c = 'th',
-            Language__c = 'th',
-            Use_Places_Fallback__c = placesFallback);
+            API_Key__c = 'TEST_KEY');
+        GoogleMapsSettings.placesFallbackOn = placesFallback;
     }
 
     private static GoogleMapsCalloutMock mock() {
@@ -45,7 +42,6 @@ private class GoogleGeocodingServiceTest {
 
         String url = m.requests[0].getEndpoint();
         Assert.isTrue(url.contains('components=country%3ATH'), url);
-        Assert.isTrue(url.contains('region=th'), url);
         Assert.isTrue(url.contains('language=th'), url);
         Assert.isTrue(url.contains('key=TEST_KEY'), url);
     }
@@ -187,8 +183,9 @@ private class GoogleGeocodingServiceTest {
         Assert.isFalse(GoogleMapsSettings.isEnabled(), 'Disabled when no org default exists');
         Assert.areEqual(GoogleMapsSettings.DEFAULT_BATCH_SIZE, GoogleMapsSettings.batchSize());
         Assert.areEqual(GoogleMapsSettings.DEFAULT_TIMEOUT_MS, GoogleMapsSettings.timeoutMs());
-        Assert.isNull(GoogleMapsSettings.countryCode());
-        Assert.isFalse(GoogleMapsSettings.usePlacesFallback());
+        Assert.areEqual('TH', GoogleMapsSettings.countryCode());
+        Assert.areEqual('th', GoogleMapsSettings.language());
+        Assert.isTrue(GoogleMapsSettings.usePlacesFallback(), 'Places fallback is on by default');
         Assert.areEqual('ogg__Latitude__c', GoogleMapsSettings.originalLatitudeField());
         Assert.areEqual('ogg__Longitude__c', GoogleMapsSettings.originalLongitudeField());
 
