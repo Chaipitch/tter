@@ -176,7 +176,7 @@ They're unused, but they stay in the org until deleted:
    ```
 
    `--ignore-warnings` matters: components that are already gone (e.g. buttons deleted earlier) only produce a warning, but without the flag a warning makes the whole cleanup fail and nothing is deleted.
-3. Check: Setup → Custom Settings → **Google Maps Settings**. The five fields are now under *Deleted Fields* (kept by Salesforce for 15 days; you can **Erase** them there).
+3. Check: Setup → Custom Settings → **Google Maps Settings**. Only Enabled, Provider, API Key, Original Latitude/Longitude Field, Batch Size and Timeout should be left under *Custom Fields*. If Salesforce lists the removed ones under *Deleted Fields*, it keeps them there for 15 days; **Erase** removes them for good.
 
 ### 3.6 Optional: nightly run
 
