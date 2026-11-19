@@ -169,6 +169,7 @@ The output first shows the query variants built from the Thai address (`withoutU
 |---|---|
 | New records aren't looked up automatically | *Disable Lookup On Create* is checked, the feature is off, or the record was inserted with `isCoordsUpdated__c` already checked. Also check the debug log for `no background job slot left` (UPWARD inserting from async code). The Account list view button or the nightly run will catch them up. |
 | Button missing | Account list view button: add it in Account's *List View Button Layout*. Record button: add it to the oggLocation page layout / Lightning page. See DEPLOYMENT_GUIDE 3.5. |
+| *The page no longer exists* after **Back to list** / **Cancel** | Fixed: in Lightning Experience the buttons now go back with `sforce.one.back(true)` instead of the Classic list URL. If it still appears, deploy the latest `SuggestLocationsFromAccounts` page. |
 | Account list view button page: *Insufficient privileges* | Assign the `AccountLocation_Geocoding` permission set (it grants the page and its controller). |
 | Batch Completed but some records still empty | Those addresses are blank or weren't found (their `isCoordsUpdated__c` stays unchecked, so they're retried next run); check the debug log of the user who started it. With OpenStreetMap, only 200 records are processed per run. |
 | A record is never picked up by the nightly run / Account list view button | Its `isCoordsUpdated__c` is already checked. Untick it, or use the record button. |
