@@ -175,7 +175,7 @@ private class AccountLocationGeocodeBatchTest {
     static void accountListButtonProcessesAllUnprocessedLocations() {
         configure(true, null);
         GoogleMapsCalloutMock m = mockGoogle();
-        List<ogg__Location__c> locs = createLocations(4, 1);   // 3 not processed yet
+        List<ogg__Location__c> locs = createLocations(3, 0);   // 3 not processed yet
 
         // Which Accounts are selected doesn't matter
         List<Account> someAccounts = [SELECT Id FROM Account LIMIT 1];
@@ -186,17 +186,70 @@ private class AccountLocationGeocodeBatchTest {
         Assert.isFalse(ctrl.moreThanCounted);
         Assert.isTrue(ctrl.enabled);
         Assert.isFalse(ctrl.openStreetMap);
+        Assert.isFalse(ctrl.polling);
+
+        Test.startTest();
+        ctrl.start();
+        Assert.isTrue(ctrl.started);
+        Assert.isTrue(ctrl.polling, 'Polls while the batch runs');
+        Assert.isFalse(ctrl.finished);
+        Test.stopTest();
+
+        // The page's poller calls refreshStatus(); the batch has finished now
+        ctrl.refreshStatus();
+        Assert.isNotNull(ctrl.jobId);
+        Assert.areEqual('Completed', ctrl.jobStatus);
+        Assert.isTrue(ctrl.finished);
+        Assert.isFalse(ctrl.polling, 'Stops polling when finished');
+        Assert.areEqual(100, ctrl.percent);
+        Assert.areEqual(3, ctrl.recordsInRun);
+        Assert.areEqual(3, ctrl.recordsDoneApprox);
+        Assert.areEqual(0, ctrl.batchesFailed);
+
+        // Summary: 3 updated, all ~560 m from the test pin (> 500 m), none left
+        Assert.areEqual(3, ctrl.updatedCount);
+        Assert.areEqual(3, ctrl.farCount);
+        Assert.areEqual(0, ctrl.noDistanceCount);
+        Assert.areEqual(0, ctrl.remainingCount);
+
+        Assert.areEqual(3, countWithSuggestion(locs, SUGGESTED_LAT));
+        Assert.areEqual(3, m.requests.size());
+        ctrl.back();   // returns to the list view in the UI
+    }
+
+    @IsTest
+    static void accountListButtonSummaryCountsSkippedRecords() {
+        configure(true, null);
+        mockGoogle();
+        List<ogg__Location__c> locs = createLocations(2, 0);
+        // One location linked to a non-Account record: no address -> stays unprocessed
+        ogg__Location__c orphan = locs[0].clone(false, true);
+        orphan.ogg__ObjectId__c = String.valueOf(UserInfo.getUserId());
+        orphan.ogg__prefix__c = '005';
+        insert orphan;
+
+        SuggestLocationsFromAccountsController ctrl =
+            new SuggestLocationsFromAccountsController(new ApexPages.StandardSetController(new List<Account>()));
+        Assert.areEqual(3, ctrl.unprocessedCount);
 
         Test.startTest();
         ctrl.start();
         Test.stopTest();
+        ctrl.refreshStatus();
 
-        Assert.isTrue(ctrl.started);
-        Assert.isNotNull(ctrl.jobId);
-        Assert.areEqual(3, countWithSuggestion(locs, SUGGESTED_LAT));
-        Assert.areEqual(3, m.requests.size(), 'The already processed record is skipped');
-        Assert.isTrue(ApexPages.hasMessages(ApexPages.Severity.CONFIRM));
-        ctrl.back();   // returns to the list view in the UI
+        Assert.isTrue(ctrl.finished);
+        Assert.areEqual(2, ctrl.updatedCount);
+        Assert.areEqual(1, ctrl.remainingCount, 'Not linked to an Account: no address, retried next run');
+    }
+
+    @IsTest
+    static void refreshWithoutJobDoesNothing() {
+        configure(true, null);
+        SuggestLocationsFromAccountsController ctrl =
+            new SuggestLocationsFromAccountsController(new ApexPages.StandardSetController(new List<Account>()));
+        Assert.isNull(ctrl.refreshStatus());
+        Assert.isFalse(ctrl.finished);
+        Assert.areEqual(0, ctrl.percent);
     }
 
     @IsTest

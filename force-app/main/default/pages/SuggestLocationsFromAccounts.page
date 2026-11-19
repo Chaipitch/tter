@@ -42,7 +42,55 @@
                                         styleClass="slds-button slds-button_neutral" />
                 </apex:outputPanel>
 
-                <apex:outputPanel rendered="{!started}">
+                <apex:outputPanel id="run" layout="block" rendered="{!started}">
+                    <apex:actionPoller action="{!refreshStatus}" interval="5" reRender="run" enabled="{!polling}" />
+
+                    <!-- progress -->
+                    <p class="slds-m-bottom_x-small">
+                        <b><apex:outputText value="{!IF(finished, 'Finished', 'Running')}" /></b>
+                        &#160;(batch job {!jobId}, status: {!jobStatus})
+                    </p>
+                    <div class="slds-progress-bar slds-progress-bar_large slds-m-bottom_x-small"
+                         role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{!percent}">
+                        <span class="slds-progress-bar__value {!IF(AND(finished, batchesFailed == 0), 'slds-progress-bar__value_success', '')}"
+                              style="width: {!percent}%;"></span>
+                    </div>
+                    <p class="slds-m-bottom_medium">
+                        {!percent}% &#183;
+                        <apex:outputText rendered="{!batchesTotal > 0}"
+                            value="batch {!batchesProcessed} of {!batchesTotal}, about {!recordsDoneApprox} of {!recordsInRun} record(s)" />
+                        <apex:outputText rendered="{!AND(batchesTotal == 0, NOT(finished))}"
+                            value="waiting to start (other background jobs may be running)" />
+                        <apex:outputText rendered="{!NOT(finished)}" value=" · this page refreshes every 5 seconds" />
+                    </p>
+
+                    <!-- summary -->
+                    <apex:outputPanel layout="block" rendered="{!finished}">
+                        <h2 class="slds-text-heading_small slds-m-bottom_x-small">Summary</h2>
+                        <table class="slds-table slds-table_bordered slds-table_cell-buffer slds-m-bottom_small"
+                               style="max-width: 640px;">
+                            <tbody>
+                                <tr><td>Updated with a suggested location</td>
+                                    <td class="slds-text-align_right"><b>{!updatedCount}</b></td></tr>
+                                <tr><td>&#160;&#160;&#8230; more than {!FAR_DISTANCE_METERS} m from UPWARD's pin (worth checking)</td>
+                                    <td class="slds-text-align_right">{!farCount}</td></tr>
+                                <tr><td>&#160;&#160;&#8230; without a distance (UPWARD's pin empty or invalid)</td>
+                                    <td class="slds-text-align_right">{!noDistanceCount}</td></tr>
+                                <tr><td>Still not processed (blank or unfindable address, or the lookup failed; retried next run)</td>
+                                    <td class="slds-text-align_right">{!remainingCount}</td></tr>
+                                <tr><td>Batches failed (see Setup &gt; Apex Jobs)</td>
+                                    <td class="slds-text-align_right">{!batchesFailed}</td></tr>
+                            </tbody>
+                        </table>
+                        <apex:outputPanel rendered="{!NOT(ISBLANK(jobMessage))}">
+                            <p class="slds-text-color_error slds-m-bottom_small">{!jobMessage}</p>
+                        </apex:outputPanel>
+                        <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_small">
+                            Counted from the data: oggLocations flagged since this run started (records the
+                            on-create trigger processed at the same time are included) and those still unflagged.
+                        </p>
+                    </apex:outputPanel>
+
                     <apex:commandButton action="{!back}" value="Back to list" immediate="true"
                                         styleClass="slds-button slds-button_neutral" />
                 </apex:outputPanel>
