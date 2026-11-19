@@ -1,7 +1,7 @@
 // Bulk: looks up ALL ogg__Location__c records not processed yet (isCoordsUpdated__c = false), using Batch Apex
 // (30 records per batch with Google, 10 with OpenStreetMap; OpenStreetMap runs are capped at 200 records).
 // Processed records get isCoordsUpdated__c = true and are skipped by later runs.
-// Same as the Account list view button "Suggest Locations (Google)".
+// Same as Start in the "Suggest Locations" global action (+ in the header).
 // Progress: Setup > Apex Jobs > AccountLocationGeocodeBatch.
 // Run:  sf apex run --file scripts/apex/regeocode-existing.apex --target-org tterakit-sb
 Id jobId = AccountLocationGeocodeBatch.run(null);

@@ -63,7 +63,7 @@ The running user needs no access to the target fields. The job runs in system mo
 `AccountLocationTrigger` (after insert on `ogg__Location__c`) is part of the deployment. It looks up every new oggLocation automatically.
 
 * **Other triggers:** if your org or UPWARD has other triggers on `ogg__Location__c`, they keep working. This one only queues a background job and doesn't change the record during the insert.
-* **Before a large data load:** check *Disable Lookup On Create* in Google Maps Settings (step 4). Afterwards, process the loaded records with the Account list view button or the nightly run, then uncheck it again.
+* **Before a large data load:** check *Disable Lookup On Create* in Google Maps Settings (step 4). Afterwards, process the loaded records with the "Suggest Locations" global action or the nightly run, then uncheck it again.
 * **The removed `destructiveChanges.xml`:** an earlier version of this project used it to delete the trigger. It has been removed, so the trigger can't be deleted by accident. Don't use an old copy.
 
 ---
@@ -132,7 +132,7 @@ If the validation passed, you can quick-deploy it instead: `sf project deploy qu
 
 ### 3.4 Assign the permission set
 
-The permission set lets users use both buttons and the utility bar panel, and read the three suggested/distance fields. It grants access to the Apex classes `AccountLocationGeocodeAction`, `SuggestLocationsFromAccountsController` and `SuggestLocationsPanelController`, and to the Visualforce page `SuggestLocationsFromAccounts`.
+The permission set lets users use the record button and the "Suggest Locations" global action, and read the three suggested/distance fields. It grants access to the Apex classes `AccountLocationGeocodeAction` and `SuggestLocationsPanelController`.
 
 ```bash
 sf org assign permset --name AccountLocation_Geocoding --target-org tterakit-sb
@@ -140,42 +140,41 @@ sf org assign permset --name AccountLocation_Geocoding --target-org tterakit-sb
 
 To assign it to other users, add `--on-behalf-of user@example.com`, or assign it in Setup. Users without it get an error when they click a button.
 
-### 3.5 Put the buttons on the page
+### 3.5 Add the "Suggest Locations" global action (bulk, floats over the Account list view)
 
-Both buttons are deployed, but they only show once they're placed.
-
-**Account list view button "Suggest Locations (Google)"** (bulk). oggLocation belongs to a managed package, where list view buttons can't be placed, so this button is on **Account**:
-* Setup → Object Manager → **Account** → **List View Button Layout** → edit the *List View* row → move **Suggest Locations (Google)** to *Selected Buttons* → Save.
-* It then appears at the top right of every Account list view. Click it (which Accounts are selected doesn't matter), check the number of oggLocations not processed yet, and click **Start**. It processes **all** oggLocations with `isCoordsUpdated__c` unchecked. A report or list on oggLocation filtered on *isCoordsUpdated equals False* is handy for checking what's left.
-* **Earlier deployments:** a previous version put this button on oggLocation (`ogg__Location__c.Suggest_Locations_Google`, page `AccountLocationGeocodeList`, class `AccountLocationGeocodeListController`). They're no longer in the project and aren't used. To tidy up `tterakit-sb`, delete them in Setup in this order: the button (Object Manager → oggLocation → Buttons, Links, and Actions), then the Visualforce page, then the Apex class.
-
-**Record button "Suggest Location (Google)"** (single record):
-* **Page layout** (most orgs): Setup → Object Manager → **oggLocation** → Page Layouts → open the layout → **Mobile & Lightning Actions** → drag **Suggest Location (Google)** into *Salesforce Mobile and Lightning Experience Actions* → Save. If that section shows "predefined actions", click the wrench icon first to override them.
-* **Lightning record page with Dynamic Actions:** Lightning App Builder → select the Highlights Panel → **Add Action** → *Suggest Location (Google)* → Save.
-
-Also add `Suggested Latitude`, `Suggested Longtitude` and `Different Distance` to the layout and, if useful, to list views.
-
-### 3.5b Add the "Suggest Locations" global action (floats over the Account list view, works in managed apps)
-
-A list view button can't open a floating window in Lightning, and utility bar items can't be added to **managed** apps. The **global action** works in every app: it's in the global actions menu (the **+** icon in the header), and it opens a modal over the current page, such as the Account list view.
+A list view button can't open a floating window in Lightning, and the users' app is a managed app, so the bulk lookup is a **global action**. It's in the global actions menu (the **+** icon in the header) in every app, and it opens a modal over the current page, such as the Account list view.
 
 1. Setup → **Publisher Layouts** → **Global Layout** → **Edit**.
 2. **Mobile & Lightning Actions** → if the *Salesforce Mobile and Lightning Experience Actions* section shows predefined actions, click **override the predefined actions** first.
 3. Drag **Suggest Locations** into *Salesforce Mobile and Lightning Experience Actions* → **Save**.
 4. In the app, click **+** (Global Actions) in the header → **Suggest Locations**.
 
-The modal shows the same panel as the utility bar version: count, **Start**, progress bar (every 5 s), and a summary and toast when the run finishes. Closing the modal doesn't stop the run. Opening **Suggest Locations** again picks it up and shows its progress. Users need the `AccountLocation_Geocoding` permission set (step 3.4).
+The modal shows how many oggLocations aren't processed yet (`isCoordsUpdated__c` unchecked). **Start** runs the bulk lookup for **all** of them; the modal shows a progress bar (every 5 s), and when the run finishes, a summary and a toast. Closing the modal doesn't stop the run. Opening **Suggest Locations** again picks it up and shows its progress. An oggLocation report filtered on *isCoordsUpdated equals False* is handy for checking what's left.
 
-### 3.5c Optional: "Suggest Locations" as a utility bar panel (editable apps only)
+If the action isn't in the **+** menu, check *Publisher Layout Assignment*: the user's profile may use another global layout.
 
-In apps you can edit (not managed apps), the same panel can also be a **utility bar** item: a panel at the bottom of the app that opens over any page and keeps following a run while you navigate.
+### 3.5b Put the record button on the oggLocation page (single record)
 
-1. Setup → **App Manager** → the Lightning app your users work in (for example *Sales*) → ▼ → **Edit**.
-2. **Utility Items (Desktop Only)** → **Add Utility Item** → choose **Suggest Locations** (custom component).
-3. Optional: set the *Panel Width* (e.g. 420) and *Panel Height* (e.g. 520), and the icon (e.g. `location`). Tick **Start automatically** so it keeps following a run while the panel is closed.
-4. **Save**.
+* **Page layout** (most orgs): Setup → Object Manager → **oggLocation** → Page Layouts → open the layout → **Mobile & Lightning Actions** → drag **Suggest Location (Google)** into *Salesforce Mobile and Lightning Experience Actions* → Save. If that section shows "predefined actions", click the wrench icon first to override them.
+* **Lightning record page with Dynamic Actions:** Lightning App Builder → select the Highlights Panel → **Add Action** → *Suggest Location (Google)* → Save.
 
-The panel shows how many oggLocations aren't processed yet. **Start** runs the bulk lookup; the panel shows a progress bar (every 5 s), and when the run finishes, a summary and a toast. It keeps following the run while you navigate, and it picks up a run you started earlier when you open it again. Users need the `AccountLocation_Geocoding` permission set (step 3.4).
+Also add `Suggested Latitude`, `Suggested Longtitude` and `Different Distance` to the layout and, if useful, to list views.
+
+### 3.5c Remove leftovers from earlier versions (orgs that had them, e.g. `tterakit-sb`)
+
+Earlier versions deployed list view buttons that are no longer part of the project:
+* the Account list view button **Suggest Locations (Google)**, page `SuggestLocationsFromAccounts` and class `SuggestLocationsFromAccountsController`
+* the oggLocation list view button, page `AccountLocationGeocodeList` and class `AccountLocationGeocodeListController`
+
+They're unused, but they stay in the org until deleted:
+1. Setup → Object Manager → **Account** → **List View Button Layout** → remove **Suggest Locations (Google)** from *Selected Buttons* → Save. A button that's still on a layout can't be deleted.
+2. Deploy the current project first, so no test class refers to them any more, then delete them:
+
+   ```bash
+   sf project deploy start --manifest manifest/cleanup/package.xml --post-destructive-changes manifest/cleanup/destructiveChanges.xml --target-org tterakit-sb --wait 30
+   ```
+
+   Components that don't exist in the org are reported as warnings and skipped.
 
 ### 3.6 Optional: nightly run
 
@@ -271,11 +270,11 @@ A line like `source=GEOCODING_API lat=13.74... lng=100.53...` in the output mean
 
 ## 7. Rollback
 
-* **Quick off switch:** uncheck `Enabled__c` in the custom setting. The trigger does nothing, both buttons say the lookup is turned off, and a running batch stops making calls at its next chunk.
+* **Quick off switch:** uncheck `Enabled__c` in the custom setting. The trigger does nothing, the record button and the global action say the lookup is turned off, and a running batch stops making calls at its next chunk.
 * **Only stop the automatic lookup on create:** check *Disable Lookup On Create*. The buttons and the nightly run keep working.
 * **Stop a running batch:** Setup → Apex Jobs → *Abort* on `AccountLocationGeocodeBatch`.
 * **Stop the nightly run:** Setup → Scheduled Jobs → *Suggest locations nightly* → Del.
-* **Hide the buttons:** remove them from the Account list view button layout and the oggLocation page layout / Lightning page.
+* **Hide the actions:** remove **Suggest Locations** from the Global Publisher Layout, and the record button from the oggLocation page layout / Lightning page.
 * **Full removal:** delete the trigger, buttons, page, LWC and classes with a destructive deployment. Keep the fields if their data is needed.
 
 ---
@@ -283,5 +282,5 @@ A line like `source=GEOCODING_API lat=13.74... lng=100.53...` in the output mean
 ## 8. Promoting to production later
 
 * Use `--test-level RunSpecifiedTests` with the six test classes (or `RunLocalTests`). Production requires 75% coverage overall.
-* Repeat steps 3.4, 3.5, 3.6 and 4 in production, using a **production** API key with its own quota.
-* To fill in existing records after go-live, use the Account list view button, or run `scripts/apex/regeocode-existing.apex`.
+* Repeat steps 3.4, 3.5, 3.5b, 3.6 and 4 in production, using a **production** API key with its own quota.
+* To fill in existing records after go-live, use the "Suggest Locations" global action, or run `scripts/apex/regeocode-existing.apex`.

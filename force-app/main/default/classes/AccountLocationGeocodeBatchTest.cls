@@ -1,8 +1,3 @@
-/**
- * Bulk processing: AccountLocationGeocodeBatch (selected records / all not processed yet / scheduled)
- * the Account list view button controller SuggestLocationsFromAccountsController, and the utility bar
- * panel controller SuggestLocationsPanelController (with LocationLookupRunService).
- */
 @IsTest
 private class AccountLocationGeocodeBatchTest {
 
@@ -170,57 +165,10 @@ private class AccountLocationGeocodeBatchTest {
         Assert.areEqual(3, countWithSuggestion(locs, SUGGESTED_LAT));
     }
 
-    // ------------------------------------------------------------------ Account list view button
+    // ------------------------------------------------------------------ global action panel
 
     @IsTest
-    static void accountListButtonProcessesAllUnprocessedLocations() {
-        configure(true, null);
-        GoogleMapsCalloutMock m = mockGoogle();
-        List<ogg__Location__c> locs = createLocations(3, 0);   // 3 not processed yet
-
-        // Which Accounts are selected doesn't matter
-        List<Account> someAccounts = [SELECT Id FROM Account LIMIT 1];
-        ApexPages.StandardSetController setCon = new ApexPages.StandardSetController(someAccounts);
-        setCon.setSelected(someAccounts);
-        SuggestLocationsFromAccountsController ctrl = new SuggestLocationsFromAccountsController(setCon);
-        Assert.areEqual(3, ctrl.unprocessedCount);
-        Assert.isFalse(ctrl.moreThanCounted);
-        Assert.isTrue(ctrl.enabled);
-        Assert.isFalse(ctrl.openStreetMap);
-        Assert.isFalse(ctrl.polling);
-
-        Test.startTest();
-        ctrl.start();
-        Assert.isTrue(ctrl.started);
-        Assert.isTrue(ctrl.polling, 'Polls while the batch runs');
-        Assert.isFalse(ctrl.finished);
-        Test.stopTest();
-
-        // The page's poller calls refreshStatus(); the batch has finished now
-        ctrl.refreshStatus();
-        Assert.isNotNull(ctrl.jobId);
-        Assert.areEqual('Completed', ctrl.jobStatus);
-        Assert.isTrue(ctrl.finished);
-        Assert.isFalse(ctrl.polling, 'Stops polling when finished');
-        Assert.areEqual(100, ctrl.percent);
-        Assert.areEqual(3, ctrl.recordsInRun);
-        Assert.areEqual(3, ctrl.recordsDoneApprox);
-        Assert.areEqual(0, ctrl.batchesFailed);
-
-        // Summary: 3 updated, all ~560 m from the test pin (> 500 m), none left
-        Assert.areEqual(3, ctrl.updatedCount);
-        Assert.areEqual(3, ctrl.farCount);
-        Assert.areEqual(0, ctrl.noDistanceCount);
-        Assert.areEqual(0, ctrl.remainingCount);
-        Assert.areEqual(SuggestLocationsFromAccountsController.FAR_DISTANCE_METERS, ctrl.farDistanceMeters);
-
-        Assert.areEqual(3, countWithSuggestion(locs, SUGGESTED_LAT));
-        Assert.areEqual(3, m.requests.size());
-        ctrl.back();   // returns to the list view in the UI
-    }
-
-    @IsTest
-    static void accountListButtonSummaryCountsSkippedRecords() {
+    static void panelSummaryCountsSkippedRecords() {
         configure(true, null);
         mockGoogle();
         List<ogg__Location__c> locs = createLocations(2, 0);
@@ -229,45 +177,18 @@ private class AccountLocationGeocodeBatchTest {
         orphan.ogg__ObjectId__c = String.valueOf(UserInfo.getUserId());
         orphan.ogg__prefix__c = '005';
         insert orphan;
-
-        SuggestLocationsFromAccountsController ctrl =
-            new SuggestLocationsFromAccountsController(new ApexPages.StandardSetController(new List<Account>()));
-        Assert.areEqual(3, ctrl.unprocessedCount);
+        Assert.areEqual(3, SuggestLocationsPanelController.getOverview().get('unprocessedCount'));
 
         Test.startTest();
-        ctrl.start();
+        Map<String, Object> run = SuggestLocationsPanelController.startRun();
         Test.stopTest();
-        ctrl.refreshStatus();
 
-        Assert.isTrue(ctrl.finished);
-        Assert.areEqual(2, ctrl.updatedCount);
-        Assert.areEqual(1, ctrl.remainingCount, 'Not linked to an Account: no address, retried next run');
+        LocationLookupRunService.RunStatus done = SuggestLocationsPanelController.getStatus(
+            (Id) run.get('jobId'), (Long) run.get('startedAtMs'), (Integer) run.get('recordsInRun'));
+        Assert.isTrue(done.finished);
+        Assert.areEqual(2, done.updatedCount);
+        Assert.areEqual(1, done.remainingCount, 'Not linked to an Account: no address, retried next run');
     }
-
-    @IsTest
-    static void refreshWithoutJobDoesNothing() {
-        configure(true, null);
-        SuggestLocationsFromAccountsController ctrl =
-            new SuggestLocationsFromAccountsController(new ApexPages.StandardSetController(new List<Account>()));
-        Assert.isNull(ctrl.refreshStatus());
-        Assert.isFalse(ctrl.finished);
-        Assert.areEqual(0, ctrl.percent);
-    }
-
-    @IsTest
-    static void accountListButtonShowsErrorWhenDisabled() {
-        configure(false, null);
-        SuggestLocationsFromAccountsController ctrl =
-            new SuggestLocationsFromAccountsController(new ApexPages.StandardSetController(new List<Account>()));
-
-        Assert.isFalse(ctrl.enabled);
-        ctrl.start();
-        Assert.isFalse(ctrl.started);
-        Assert.isTrue(ApexPages.hasMessages(ApexPages.Severity.ERROR));
-        Assert.areEqual(200, ctrl.openStreetMapLimit);
-    }
-
-    // ------------------------------------------------------------------ utility bar panel
 
     @IsTest
     static void panelOverviewStartAndSummary() {

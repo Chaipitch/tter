@@ -1,21 +1,3 @@
-/**
- * Looks up coordinates for a free-text (Thai) address using Google Maps Platform.
- *
- * Search strategy (stops as soon as a "good" result is found, max MAX_CALLOUTS_PER_ADDRESS callouts):
- *   1. Geocoding API  - address without room / floor        (ThaiAddressNormalizer.withoutUnit)
- *   2. Geocoding API  - street level, without building name (ThaiAddressNormalizer.streetLevel)
- *   3. Places API (New) Text Search - address without room / floor (good at building / shop names)
- *      only when Use_Places_Fallback__c is checked.
- * Geocoding calls go first because they cost much less than Places Text Search.
- *
- * A result is "good" when it is precise (no partial_match, not APPROXIMATE) and its postcode does not
- * contradict the postcode in the address. If no result is good, the best-scoring one is returned.
- *
- * Provider__c = "OpenStreetMap" (temporary, no API key): steps 1 and 2 use OpenStreetMapGeocoder (Nominatim)
- * instead of the Geocoding API, with the same scoring; step 3 is skipped.
- *
- * Callouts only - no DML.
- */
 public without sharing class GoogleGeocodingService {
 
     public class GeocodingException extends Exception {}

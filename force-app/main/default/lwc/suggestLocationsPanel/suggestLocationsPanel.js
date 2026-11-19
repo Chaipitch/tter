@@ -1,4 +1,4 @@
-import { LightningElement, api } from 'lwc';
+import { LightningElement } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getOverview from '@salesforce/apex/SuggestLocationsPanelController.getOverview';
 import startRun from '@salesforce/apex/SuggestLocationsPanelController.startRun';
@@ -6,17 +6,7 @@ import getStatus from '@salesforce/apex/SuggestLocationsPanelController.getStatu
 
 const POLL_INTERVAL_MS = 5000;
 
-/**
- * "Suggest Locations" panel: floats over any page (e.g. the Account list view), either as a utility bar
- * item (mode "utility") or inside the global action modal suggestLocationsGlobalAction (mode "modal").
- * Shows how many oggLocations aren't processed yet, starts the bulk lookup (AccountLocationGeocodeBatch),
- * follows its progress every 5 s, then shows a summary and a toast. Keeps following the run while the
- * user navigates; when opened, it also picks up a run of this user that is still going.
- */
 export default class SuggestLocationsPanel extends LightningElement {
-    /** "utility" (utility bar, default) or "modal" (global action). Only changes the help text. */
-    @api mode = 'utility';
-
     overview;
     run;        // { jobId, startedAtMs, recordsInRun }
     status;     // LocationLookupRunService.RunStatus
@@ -192,16 +182,6 @@ export default class SuggestLocationsPanel extends LightningElement {
                 + `about ${s.recordsDoneApprox} of ${s.recordsInRun} record(s)`;
         }
         return s.finished ? '100%' : 'Waiting to start (other background jobs may be running)';
-    }
-
-    get isModal() {
-        return this.mode === 'modal';
-    }
-
-    get backgroundHint() {
-        return this.isModal
-            ? 'You can close this window: the run continues in the background. Open Suggest Locations again to see its progress.'
-            : 'You can keep working and navigate; this panel keeps following the run.';
     }
 
     get hasFailures() {

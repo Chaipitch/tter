@@ -1,7 +1,3 @@
-/**
- * Read-only accessor for the Google_Maps_Settings__c hierarchy custom setting (Organization Default).
- * Centralises defaults and validates the configurable "original coordinate" field names.
- */
 public without sharing class GoogleMapsSettings {
 
     public class ConfigurationException extends Exception {}

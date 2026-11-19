@@ -21,7 +21,7 @@
             <p class="slds-text-heading_large">{countLabel}</p>
             <p class="slds-m-bottom_small">oggLocation record(s) not processed yet</p>
             <p class="slds-text-color_weak slds-m-bottom_small">
-                Start looks up all of them (isCoordsUpdated unchecked) in the background. {backgroundHint}
+                Start looks up all of them (isCoordsUpdated unchecked) in the background.
                 To process a record again, untick its isCoordsUpdated or use the "Suggest Location (Google)"
                 button on the record.
             </p>
@@ -46,7 +46,10 @@
                                     class="slds-m-bottom_x-small"></lightning-progress-bar>
             <p class="slds-text-color_weak slds-m-bottom_x-small">{progressText}</p>
             <template lwc:if={running}>
-                <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_medium">{backgroundHint}</p>
+                <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_medium">
+                    You can close this window: the run continues in the background. Open Suggest Locations again
+                    to see its progress.
+                </p>
             </template>
 
             <template lwc:if={finished}>

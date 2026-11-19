@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Deletes list view buttons, pages and controllers that are no longer part of the project but may still be
+  deployed in an org (tterakit-sb):
+    - Account list view button "Suggest Locations (Google)" + page SuggestLocationsFromAccounts + its controller
+      (replaced by the "Suggest Locations" global action)
+    - the older oggLocation list view button + page AccountLocationGeocodeList + its controller
+      (could never be placed on the managed object)
+  Remove the Account button from Account's List View Button Layout first. See docs/DEPLOYMENT_GUIDE.md, 7.
+  Components that don't exist in the org are reported as warnings and skipped.
+-->
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>Account.Suggest_Locations_Google</members>
+        <members>ogg__Location__c.Suggest_Locations_Google</members>
+        <name>WebLink</name>
+    </types>
+    <types>
+        <members>SuggestLocationsFromAccounts</members>
+        <members>AccountLocationGeocodeList</members>
+        <name>ApexPage</name>
+    </types>
+    <types>
+        <members>SuggestLocationsFromAccountsController</members>
+        <members>AccountLocationGeocodeListController</members>
+        <name>ApexClass</name>
+    </types>
+    <version>62.0</version>
+</Package>

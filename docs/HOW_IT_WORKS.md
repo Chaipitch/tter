@@ -8,7 +8,7 @@ This explains how the Google Maps "suggested coordinates" feature for `ogg__Loca
 
 Customers keep their whole address in one field, `Account.Address__c`, and the same address in the standard **Billing Address**. UPWARD creates an `ogg__Location__c` record from the Billing Address with a latitude/longitude and a map pin. If the address doesn't exactly match Google's data, UPWARD's pin can land in the wrong place.
 
-This feature gives a second opinion, **for large numbers of records**. The address is sent to Google Maps, and Google's coordinates are stored next to UPWARD's. The distance between the two pins is stored too, so wrong pins are easy to spot. New oggLocation records are looked up **automatically** right after they're created. Existing records, records the trigger skipped, and re-checks are handled in bulk from a list view button or a schedule, or one at a time from a record button. Nothing runs when records are *changed*.
+This feature gives a second opinion, **for large numbers of records**. The address is sent to Google Maps, and Google's coordinates are stored next to UPWARD's. The distance between the two pins is stored too, so wrong pins are easy to spot. New oggLocation records are looked up **automatically** right after they're created. Existing records, records the trigger skipped, and re-checks are handled in bulk from the "Suggest Locations" global action (a modal over the current page) or a schedule, or one at a time from a record button. Nothing runs when records are *changed*.
 
 | Field on `ogg__Location__c` | Set by | Meaning |
 |---|---|---|
@@ -25,9 +25,9 @@ This feature gives a second opinion, **for large numbers of records**. The addre
 
 ```
       ON CREATE                         BULK                                        SINGLE RECORD
- ogg__Location__c inserted    ACCOUNT list view button                        record button "Suggest Location (Google)"
-   → AccountLocationTrigger     "Suggest Locations (Google)"                    → LWC suggestGoogleLocation
-                                → page SuggestLocationsFromAccounts (Start)
+ ogg__Location__c inserted    global action "Suggest Locations" (+ menu)     record button "Suggest Location (Google)"
+   → AccountLocationTrigger     → modal: suggestLocationsPanel (Start)          → LWC suggestGoogleLocation
+                                → SuggestLocationsPanelController.startRun
    → AccountLocationTrigger-  scheduled job (schedule-nightly.apex)             → AccountLocationGeocodeAction.enqueue
      Handler.afterInsert      script regeocode-existing.apex                           │
         │                            │                                                 │
@@ -56,11 +56,11 @@ This feature gives a second opinion, **for large numbers of records**. The addre
 
 * Callouts aren't allowed inside a trigger, so the trigger only collects the new record Ids and queues **one** `AccountLocationGeocodeQueueable` for the whole insert. The job runs a few seconds later. It processes *Batch Size* records per execution and chains itself for the rest, using the same processor as the buttons (§3.3).
 * It skips:
-  * everything, when the feature is off or *Disable Lookup On Create* is checked in the custom setting. Use that before a large data load, then process the loaded records with the list view button or the nightly run.
+  * everything, when the feature is off or *Disable Lookup On Create* is checked in the custom setting. Use that before a large data load, then process the loaded records with the "Suggest Locations" global action or the nightly run.
   * everything, when `AccountLocationTriggerHandler.bypass = true` in Apex (data-load scripts, tests).
   * records inserted with `isCoordsUpdated__c` already checked.
   * everything, when the transaction has no background-job slot left. That can happen if UPWARD creates the records from code that's already asynchronous. A message goes to the debug log.
-* Skipped records keep `isCoordsUpdated__c` = false, so **the Account list view button or the nightly run always catches up** with what the trigger didn't do.
+* Skipped records keep `isCoordsUpdated__c` = false, so **the "Suggest Locations" global action or the nightly run always catches up** with what the trigger didn't do.
 * The trigger never blocks or slows UPWARD's own insert. It only queues a job.
 
 ### 3.1 Bulk: Batch Apex — `AccountLocationGeocodeBatch`
@@ -73,36 +73,28 @@ All bulk runs process **all oggLocations with `isCoordsUpdated__c` = false** (no
 
 **How to start it**
 
-* **Account list view button "Suggest Locations (Google)"** (`WebLink` on **Account** → Visualforce page `SuggestLocationsFromAccounts` + `SuggestLocationsFromAccountsController`). oggLocation belongs to a managed package, where a list view button can't be placed, so the button lives on Account list views. It **ignores which Accounts are selected**. The page is styled as a **modal**: a centered floating card with a header, a close button and a footer, on a grey backdrop. A list view button in Lightning always opens a separate page, so the list isn't visible behind it. It shows how many oggLocations are not processed yet. After **Start** it stays open and refreshes itself every 5 seconds (`apex:actionPoller` → `refreshStatus()`, reading the batch job from `AsyncApexJob`):
-  * **while it runs:** a progress bar with *batch N of M, about X of Y records*, or *waiting to start* while the job is queued behind other background jobs.
-  * **when it's finished:** a summary of oggLocations updated in this run, how many of them are more than 500 m from UPWARD's pin (`FAR_DISTANCE_METERS`) or have no distance, how many are still not processed (blank or unfindable address, or the lookup failed; retried next run), and failed batches. The summary is counted from the data (records flagged since the run started, and records still unflagged), so records the on-create trigger processes at the same moment are included.
-
-  * **toast:** when it's finished, the page also shows a Lightning toast with the same numbers (green, or orange if batches failed). It appears only while this page is open, and only in Lightning Experience.
-
-  **Back to list** returns to the list view. Leaving the page doesn't stop the run; it continues in the background. There's no toast or notification then; check Setup → Apex Jobs or run the button again to see the count.
+* **Global action "Suggest Locations"** (header **+** menu; see §3.1b): a modal over the current page, for example the Account list view, with the count, **Start**, progress and a summary.
 * **Schedule:** `AccountLocationGeocodeBatch` is also `Schedulable`. `scripts/apex/schedule-nightly.apex` schedules it at 02:00 every night, for all records not processed yet. New records are then filled in overnight without anyone clicking.
 * **Script:** `scripts/apex/regeocode-existing.apex` starts the same "all not processed yet" run.
 
 `AccountLocationGeocodeBatch.run(...)` refuses to start when the feature is off. Each chunk checks again, so unchecking *Enabled* stops a running batch from making further calls.
 
-**The `isCoordsUpdated__c` flag** is set to `true` in the same update that writes the coordinates. Bulk runs (Account list view button, schedule, script) only pick records where it's `false`, so a record is processed once. Records Google can't find (blank address, or no result) and records where the call failed **keep `false`**, so they're tried again by the next automatic run, at 1–3 requests each time. Fix the address, or tick the flag by hand to stop retries. To process a record again, untick its flag (the next bulk run picks it up) or use the record button.
+**The `isCoordsUpdated__c` flag** is set to `true` in the same update that writes the coordinates. Bulk runs (global action, schedule, script) only pick records where it's `false`, so a record is processed once. Records Google can't find (blank address, or no result) and records where the call failed **keep `false`**, so they're tried again by the next automatic run, at 1–3 requests each time. Fix the address, or tick the flag by hand to stop retries. To process a record again, untick its flag (the next bulk run picks it up) or use the record button.
 
 **With OpenStreetMap** (temporary provider, §4.5), each chunk is 10 records and a run is capped at **200 records** (`OSM_MAX_RECORDS_PER_RUN`), because Nominatim's usage policy doesn't allow bulk geocoding. Real volumes need Google.
 
-### 3.1b Bulk from a floating panel: "Suggest Locations" (global action or utility bar)
+### 3.1b The "Suggest Locations" global action (modal over the current page)
 
-**LWC `suggestLocationsPanel` (target `lightning__UtilityBar`) → `SuggestLocationsPanelController` → `AccountLocationGeocodeBatch`**
+**Global quick action `Suggest_Locations` → Aura wrapper `suggestLocationsGlobalAction` → LWC `suggestLocationsPanel` → `SuggestLocationsPanelController` → `AccountLocationGeocodeBatch`**
 
-A list view button can't open a floating window in Lightning, so the floating version of the bulk lookup lives in the app's **utility bar**. It's a panel that opens over any page, including the Account list view. It runs exactly the same batch as the Account list view button.
+A list view button can't open a floating window in Lightning, and the users' app is managed, so utility bar items can't be added either. A **global action** works in every app. It's in the global actions menu (**+** in the header) and opens a real modal over the current page, such as the Account list view. Global actions can't host an LWC directly, so a small Aura component wraps the panel.
 
-* `getOverview()`: whether the feature is on, the provider, the number of oggLocations not processed yet, and any of this user's runs that are still going (`AsyncApexJob` of `AccountLocationGeocodeBatch`). The panel then picks that run up again, for example after it was closed.
+* `getOverview()`: whether the feature is on, the provider, the number of oggLocations not processed yet, and any of this user's runs that are still going (`AsyncApexJob` of `AccountLocationGeocodeBatch`). The panel then picks that run up again, for example after the modal was closed.
 * `startRun()`: refuses when the feature is off or there's nothing to process. Otherwise it starts the batch and returns the job Id, start time and number of records.
-* `getStatus(jobId, startedAtMs, recordsInRun)`: progress (percent, batch N of M, about X of Y records). Once the run has finished, it also returns the summary.
-* The panel polls every 5 s while the run is going, keeps following it while the user navigates, and shows a toast and the summary when it's done.
+* `getStatus(jobId, startedAtMs, recordsInRun)`: progress (percent, batch N of M, about X of Y records). Once the run has finished, it also returns the summary: oggLocations updated in this run, how many of them are more than 500 m from UPWARD's pin (`FAR_DISTANCE_METERS`) or have no distance, how many are still not processed (blank or unfindable address, or the lookup failed; retried next run), and failed batches.
+* The panel polls every 5 s while the run is going, then shows a toast and the summary. Closing the modal stops the polling, but not the run; reopening picks it up through `getOverview()`.
 
-**In managed apps** (where utility bar items can't be added) the same LWC opens from a **global action**: the quick action `Suggest_Locations` (global actions menu, **+** in the header) → Aura wrapper `suggestLocationsGlobalAction` (global actions can't host an LWC directly) → `<c:suggestLocationsPanel mode="modal"/>`. It's a real modal over the current page. Closing it stops the polling, but the run continues, and reopening picks it up through `getOverview()`.
-
-The progress and summary logic is shared with the Account list view page in **`LocationLookupRunService`**, so both always show the same numbers.
+The summary is counted from the data in **`LocationLookupRunService`**: records flagged since the run started, and records still unflagged. So records the on-create trigger processes at the same moment are included.
 
 ### 3.2 Single record: the record button
 
@@ -263,11 +255,9 @@ The Remote Site Settings `Google_Maps_Geocoding_API`, `Google_Places_API` and `O
 | `quickActions/ogg__Location__c.Suggest_Google_Location` | The **Suggest Location (Google)** button (Lightning Web Component action) |
 | `lwc/suggestGoogleLocation/` | Headless action: starts the job, polls its status, refreshes the record, shows toasts |
 | `classes/AccountLocationGeocodeAction.cls` | `@AuraEnabled enqueue` / `getStatus` used by the button |
-| `objects/Account/webLinks/Suggest_Locations_Google` | The **Suggest Locations (Google)** button on Account list views |
-| `pages/SuggestLocationsFromAccounts.page` + `classes/SuggestLocationsFromAccountsController.cls` | Confirmation page behind the Account list view button (count, Start); starts the batch |
 | `quickActions/Suggest_Locations` + `aura/suggestLocationsGlobalAction/` | Global action: opens the panel in a modal over the current page (any app, incl. managed) |
-| `lwc/suggestLocationsPanel/` + `classes/SuggestLocationsPanelController.cls` | Utility bar panel: count, Start, progress, summary, toast; floats over any page |
-| `classes/LocationLookupRunService.cls` | Shared by the panel and the Account list view page: count not processed, running job, progress and summary |
+| `lwc/suggestLocationsPanel/` + `classes/SuggestLocationsPanelController.cls` | The panel inside the global action: count, Start, progress, summary, toast |
+| `classes/LocationLookupRunService.cls` | Count not processed, running job, progress and summary for the panel |
 | `classes/AccountLocationGeocodeBatch.cls` | Bulk: Batch Apex over selected records or all with `isCoordsUpdated__c` = false; Schedulable |
 | `classes/AccountLocationGeocodeProcessor.cls` | Shared per-record work: Account lookup via `ogg__ObjectId__c`, callouts, one update per chunk |
 | `triggers/AccountLocationTrigger.trigger` + `classes/AccountLocationTriggerHandler.cls` | After insert: queue the lookup for new records; `bypass` flag |
@@ -287,9 +277,9 @@ The Remote Site Settings `Google_Maps_Geocoding_API`, `Google_Places_API` and `O
 | Decision | Reason |
 |---|---|
 | Batch Apex for bulk | Made for large volumes: each chunk has its own limits, any number of records, progress in Apex Jobs, and it can be scheduled. |
-| Bulk button on **Account** list views, with a Visualforce page | oggLocation is a managed-package object, so its list view buttons can't be placed. LWC quick actions aren't allowed on list views; a Visualforce list button is. |
-| The bulk button ignores the selection | Simple and covers any volume: it always processes every oggLocation with `isCoordsUpdated__c` = false. |
-| Trigger on insert **plus** Account list view button and schedule | New records get a suggestion right away. The bulk paths cover existing records, records the trigger skipped, and re-checks, and they're the safe way to handle large data loads (with *Disable Lookup On Create*). |
+| Bulk lookup as a **global action** (modal) | List view buttons can't open a floating window in Lightning, and the users' app is managed (no utility bar items). A global action works in every app and floats over the current page. It needs an Aura wrapper, because global actions can't host an LWC directly. |
+| A bulk run always takes everything not processed yet | Simple and covers any volume: it always processes every oggLocation with `isCoordsUpdated__c` = false. |
+| Trigger on insert **plus** global action and schedule | New records get a suggestion right away. The bulk paths cover existing records, records the trigger skipped, and re-checks, and they're the safe way to handle large data loads (with *Disable Lookup On Create*). |
 | The trigger only queues a job | Callouts aren't allowed in triggers; queuing keeps UPWARD's insert fast and unaffected by Google errors. |
 | Headless quick action (LWC) | One click, no dialog; it can report the result in a toast. |
 | Queueable for the record button | Starts at once (a batch can wait in the flex queue), and its status can be polled for the toast. |

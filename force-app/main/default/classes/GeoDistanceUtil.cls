@@ -1,6 +1,3 @@
-/**
- * Distance helpers. Uses the platform System.Location.getDistance (great-circle / Haversine).
- */
 public without sharing class GeoDistanceUtil {
 
     /**

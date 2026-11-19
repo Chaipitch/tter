@@ -1,8 +1,3 @@
-/**
- * Shared logic for bulk runs started from the UI (Account list view page and the utility bar panel):
- * counting oggLocations not processed yet, finding a run that's still going, and reporting a run's
- * progress (from AsyncApexJob) and summary (counted from the data when it has finished).
- */
 public with sharing class LocationLookupRunService {
 
     /** Counts stop here; the UI shows "10000+" beyond it. */

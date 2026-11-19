@@ -1,16 +1,3 @@
-/**
- * TEMPORARY no-key alternative to Google: OpenStreetMap Nominatim search
- * (GET https://nominatim.openstreetmap.org/search). Used when Google_Maps_Settings__c.Provider__c = "OpenStreetMap".
- *
- * Nominatim usage policy (https://operations.osmfoundation.org/policies/nominatim/):
- *   - at most 1 request per second   -> throttle() spaces requests MIN_INTERVAL_MS apart (busy wait),
- *                                       and GoogleMapsSettings caps the batch size at 10
- *   - identify the application        -> User-Agent header
- *   - no heavy / bulk use             -> for demos and testing only; switch back to Google for real use
- *
- * Thai coverage in OpenStreetMap is weaker than Google's, especially for house numbers: expect more
- * street- or district-level results.
- */
 public without sharing class OpenStreetMapGeocoder {
 
     @TestVisible private static final String SEARCH_ENDPOINT = 'https://nominatim.openstreetmap.org/search';

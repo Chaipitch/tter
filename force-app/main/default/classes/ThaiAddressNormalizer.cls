@@ -1,21 +1,3 @@
-/**
- * Prepares a single-line Thai address for Google Maps.
- *
- * Google matches Thai addresses well at "house number + road + แขวง/ตำบล + เขต/อำเภอ + province + postcode"
- * level, but room / floor / unit details ("ห้องเลขที่ 91,96 ชั้นที่ 9") usually cause a partial match
- * or a wrong location. This class produces progressively simpler query variants:
- *
- *   normalized   : Thai digits -> Arabic, abbreviations expanded (ถ. -> ถนน, กทม. -> กรุงเทพมหานคร, ...)
- *   withoutUnit  : normalized minus room / floor / unit and the word "เลขที่"   (keeps building name)
- *   streetLevel  : withoutUnit minus the building name (อาคาร... / ตึก...)
- *   postcode     : the 5-digit Thai postcode, used to validate Google's answer
- *
- * Example
- *   in          : 622 อาคารเอ็มโพเรียม ทาวเวอร์ ห้องเลขที่ 91,96 ชั้นที่ 9 ถนนสุขุมวิท แขวงคลองตัน เขตคลองเตย กรุงเทพมหานคร 10110
- *   withoutUnit : 622 อาคารเอ็มโพเรียม ทาวเวอร์ ถนนสุขุมวิท แขวงคลองตัน เขตคลองเตย กรุงเทพมหานคร 10110
- *   streetLevel : 622 ถนนสุขุมวิท แขวงคลองตัน เขตคลองเตย กรุงเทพมหานคร 10110
- *   postcode    : 10110
- */
 public without sharing class ThaiAddressNormalizer {
 
     public class PreparedAddress {

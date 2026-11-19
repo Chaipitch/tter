@@ -3,12 +3,11 @@
 This SFDX project checks the Account's single-field address of `ogg__Location__c` records against Google Maps in the background, and stores Google's coordinates next to the ones UPWARD saved. Ways it runs:
 
 * **Automatically when an oggLocation is created** (trigger, after insert). Can be switched off with *Disable Lookup On Create* in the custom setting, for example during a large data load.
-* **Account list view button "Suggest Locations (Google)"**: processes **all oggLocations not processed yet (`isCoordsUpdated__c` unchecked)**, whichever Accounts are selected. It lives on Account because oggLocation belongs to a managed package. Runs as Batch Apex, with a progress bar and a summary when it's finished. Each processed record gets `isCoordsUpdated__c` = true, so it isn't processed again.
-* **"Suggest Locations" global action / utility bar panel**: the same bulk run in a window that floats over the current page (e.g. the Account list view), with progress, a summary and a toast. The **global action** (**+** in the header) works in every app, including managed ones. The utility bar version is for apps you can edit.
+* **"Suggest Locations" global action** (**+** in the header, works in every app including managed ones): a modal that floats over the current page (e.g. the Account list view). It shows how many oggLocations aren't processed yet (`isCoordsUpdated__c` unchecked), and **Start** processes all of them with Batch Apex, with a progress bar, a summary and a toast. Each processed record gets `isCoordsUpdated__c` = true, so it isn't processed again.
 * **Scheduled run** (for example nightly) over all records not processed yet: `scripts/apex/schedule-nightly.apex`.
 * **Record button "Suggest Location (Google)"**: one record, with the result shown in a toast.
 
-The Account list view button and the schedule are for **large volumes**: existing records, and records the trigger skipped. To re-check a processed record, untick its `isCoordsUpdated__c` or use the record button.
+The global action and the schedule are for **large volumes**: existing records, and records the trigger skipped. To re-check a processed record, untick its `isCoordsUpdated__c` or use the record button.
 
 Fields written:
 
@@ -24,7 +23,7 @@ Fields written:
 Full explanation: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md). Current status and next steps: [HANDOFF.md](HANDOFF.md).
 
 ```
-Bulk:   Account list view button "Suggest Locations (Google)" ─► VF page SuggestLocationsFromAccounts (confirm)
+Bulk:   global action "Suggest Locations" (+ menu) ─► modal: suggestLocationsPanel ─► SuggestLocationsPanelController
         scheduled job / regeocode-existing.apex          │
                                                           ▼
                                        AccountLocationGeocodeBatch  (Batch Apex, 30 records per execute; 10 with OpenStreetMap)
@@ -50,9 +49,8 @@ Single: record button "Suggest Location (Google)" ─► LWC ─► AccountLocat
 force-app/main/default/
 ├── classes/
 │   ├── AccountLocationGeocodeBatch.cls       BULK: Batch Apex over selected / all records not processed yet; Schedulable
-│   ├── SuggestLocationsFromAccountsController.cls  Account list view button page controller
-│   ├── SuggestLocationsPanelController.cls   utility bar panel Apex (overview, start, status)
-│   ├── LocationLookupRunService.cls          shared: count, running job, progress + summary
+│   ├── SuggestLocationsPanelController.cls   global action panel Apex (overview, start, status)
+│   ├── LocationLookupRunService.cls          count, running job, progress + summary for the panel
 │   ├── AccountLocationGeocodeProcessor.cls   shared: find address, geocode, save (used by batch + queueable)
 │   ├── AccountLocationTriggerHandler.cls     on create: queue the lookup for new records
 │   ├── AccountLocationGeocodeAction.cls      record button Apex: start the job, report its status
@@ -64,16 +62,14 @@ force-app/main/default/
 │   ├── GeoDistanceUtil.cls                   distance (meters) helper
 │   ├── GoogleMapsCalloutMock.cls             @IsTest HTTP mock
 │   ├── TestRecordFactory.cls                 @IsTest records with the org's required fields filled in
-│   ├── AccountLocationGeocodeBatchTest.cls   bulk: batch, schedule, Account list view button
+│   ├── AccountLocationGeocodeBatchTest.cls   bulk: batch, schedule, global action panel
 │   ├── AccountLocationGeocodingTest.cls      end-to-end trigger / record button / queueable tests
 │   ├── GoogleGeocodingServiceTest.cls
 │   ├── GeoDistanceUtilTest.cls
 │   ├── ThaiAddressNormalizerTest.cls
 │   └── OpenStreetMapGeocoderTest.cls
 ├── triggers/AccountLocationTrigger.trigger   after insert on ogg__Location__c
-├── pages/SuggestLocationsFromAccounts.page   Account list view button confirmation page
-├── objects/Account/webLinks/Suggest_Locations_Google   the Account list view button
-├── lwc/suggestLocationsPanel/                floating panel (utility bar, or inside the global action)
+├── lwc/suggestLocationsPanel/                the panel shown by the global action
 ├── aura/suggestLocationsGlobalAction/        global action wrapper (modal over the current page)
 ├── quickActions/Suggest_Locations            the "Suggest Locations" global action
 ├── lwc/suggestGoogleLocation/                headless quick action (button → job → toast)
@@ -82,6 +78,7 @@ force-app/main/default/
 ├── remoteSiteSettings/                       maps.googleapis.com, places.googleapis.com, nominatim.openstreetmap.org
 └── permissionsets/AccountLocation_Geocoding  access to both buttons + read access to the 3 suggested/distance fields
 manifest/package.xml                          deployment manifest
+manifest/cleanup/                             deletes leftovers of earlier versions from an org (DEPLOYMENT_GUIDE 3.5c)
 scripts/apex/                                 anonymous Apex: configure settings (Google or OpenStreetMap), probe an address, bulk run, nightly schedule
 docs/HOW_IT_WORKS.md                         how the feature works, design decisions, limits
 docs/DEPLOYMENT_GUIDE.md                      deploy to a sandbox / production
