@@ -279,10 +279,11 @@ private class AccountLocationGeocodingTest {
     }
 
     @IsTest
-    static void rawAddressUsedWhenLinkedToAnotherObject() {
+    static void notLinkedToAnAccountIsSkipped() {
         configure(true);
-        mockPreciseResult();
-        // Linked to a non-Account record (here the running User) -> ogg__RawAddress__c is geocoded
+        GoogleMapsCalloutMock mock = mockPreciseResult();
+        // Linked to a non-Account record (here the running User): no Account address -> skipped.
+        // ogg__RawAddress__c is deliberately NOT used as an address source.
         ogg__Location__c loc = newLocation(UserInfo.getUserId(), ORIGINAL_LAT, ORIGINAL_LNG);
         loc.ogg__RawAddress__c = THAI_ADDRESS;
         insert loc;
@@ -291,7 +292,75 @@ private class AccountLocationGeocodingTest {
         AccountLocationGeocodeAction.enqueue(loc.Id);
         Test.stopTest();
 
-        Assert.areEqual(SUGGESTED_LAT, reload(loc.Id).Suggested_Latitude__c);
+        ogg__Location__c rec = reload(loc.Id);
+        Assert.isNull(rec.Suggested_Latitude__c);
+        Assert.isFalse(rec.isCoordsUpdated__c);
+        Assert.areEqual(0, mock.requests.size());
+    }
+
+    @IsTest
+    static void billingAddressUsedWhenAddressFieldIsBlank() {
+        configure(true);
+        GoogleMapsCalloutMock mock = mockPreciseResult();
+        // Address__c blank, Billing Address filled (State / Country left out: they may be picklists in the org)
+        Account acc = (Account) TestRecordFactory.build(Account.SObjectType, new Map<String, Object>{
+            'Name' => 'Geocode Test ' + Crypto.getRandomInteger(),
+            'Address__c' => null,
+            'BillingStreet' => '622 อาคารเอ็มโพเรียม ทาวเวอร์ ห้องเลขที่ 91,96 ชั้นที่ 9 ถนนสุขุมวิท แขวงคลองตัน',
+            'BillingCity' => 'เขตคลองเตย',
+            'BillingPostalCode' => '10110'
+        });
+        insert acc;
+        ogg__Location__c loc = newLocation(acc.Id, ORIGINAL_LAT, ORIGINAL_LNG);
+        insert loc;
+
+        Test.startTest();
+        AccountLocationGeocodeAction.enqueue(loc.Id);
+        Test.stopTest();
+
+        ogg__Location__c rec = reload(loc.Id);
+        Assert.areEqual(SUGGESTED_LAT, rec.Suggested_Latitude__c, 'Billing Address is the backup');
+        Assert.isTrue(rec.isCoordsUpdated__c);
+        Assert.areEqual('622 อาคารเอ็มโพเรียม ทาวเวอร์ ถนนสุขุมวิท แขวงคลองตัน เขตคลองเตย 10110',
+            mock.geocodeAddressParam(0), 'Billing Address sent to Google, without room / floor');
+    }
+
+    @IsTest
+    static void addressSourceOrder() {
+        Account acc = new Account(
+            Id = '001000000000001',
+            Address__c = '991 ถนนพระรามที่ 1 กรุงเทพมหานคร 10330',
+            BillingStreet = '622 ถนนสุขุมวิท', BillingCity = 'เขตคลองเตย', BillingPostalCode = '10110');
+        Map<Id, Account> accounts = new Map<Id, Account>{ acc.Id => acc };
+        ogg__Location__c loc = new ogg__Location__c(ogg__ObjectId__c = acc.Id, ogg__RawAddress__c = 'raw address');
+
+        Assert.areEqual(acc.Address__c, AccountLocationGeocodeProcessor.addressFor(loc, accounts), '1. Address__c');
+
+        acc.Address__c = '  ';
+        Assert.areEqual('622 ถนนสุขุมวิท เขตคลองเตย 10110',
+            AccountLocationGeocodeProcessor.addressFor(loc, accounts), '2. Billing Address when Address__c is blank');
+
+        acc.BillingStreet = null;
+        acc.BillingCity = null;
+        acc.BillingPostalCode = null;
+        Assert.isNull(AccountLocationGeocodeProcessor.addressFor(loc, accounts), 'No address: skipped, raw address ignored');
+
+        loc.ogg__ObjectId__c = UserInfo.getUserId();
+        Assert.isNull(AccountLocationGeocodeProcessor.addressFor(loc, accounts), 'No Account: skipped');
+    }
+
+    @IsTest
+    static void billingAddressFormat() {
+        Account thai = new Account(BillingStreet = ' 99/1  หมู่ 3 ', BillingCity = 'อำเภอปากเกร็ด',
+            BillingState = 'นนทบุรี', BillingPostalCode = '11120', BillingCountry = 'Thailand');
+        Assert.areEqual('99/1 หมู่ 3 อำเภอปากเกร็ด นนทบุรี 11120', AccountLocationGeocodeProcessor.billingAddress(thai),
+            'Thailand is left out');
+
+        Account abroad = new Account(BillingStreet = '1 Raffles Place', BillingPostalCode = '048616', BillingCountry = 'Singapore');
+        Assert.areEqual('1 Raffles Place 048616 Singapore', AccountLocationGeocodeProcessor.billingAddress(abroad));
+
+        Assert.isNull(AccountLocationGeocodeProcessor.billingAddress(new Account(BillingCountry = 'Thailand')),
+            'Country alone is not an address');
     }
 
     @IsTest
