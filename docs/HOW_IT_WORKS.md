@@ -36,7 +36,7 @@ This feature gives a second opinion, **for large numbers of records**. The addre
         │                       isCoordsUpdated__c = false                             │
         │                       30 per execute (10 with OpenStreetMap)                 │
         └──────────────────────────► AccountLocationGeocodeProcessor.process(ids) ◄────┘
-                                       1. ogg__ObjectId__c → Account → Address__c (fallback ogg__RawAddress__c)
+                                       1. ogg__ObjectId__c → Account → Address__c (blank: Billing Address)
                                        2. ThaiAddressNormalizer: clean the address
                                        3. GoogleGeocodingService: ask Google (max 3 calls; OpenStreetMap: max 2)
                                        4. GeoDistanceUtil: distance in meters
@@ -110,8 +110,8 @@ Both paths call `AccountLocationGeocodeProcessor.process(ids)`. It runs `without
    * turns `ogg__ObjectId__c` into an Id and checks that it really is an Account Id
    * queries those Accounts in **one** SOQL statement per chunk
    * uses `Account.Address__c`
-   * falls back to the location's own `ogg__RawAddress__c` if the Id isn't an Account or the Account no longer exists
-   * skips the record if the address is blank
+   * if that's blank, uses the Account's **Billing Address** as one line: Street, City, State, Postal Code, plus Country unless it's Thailand
+   * skips the record if both are blank, or if the Id isn't an Account or the Account no longer exists. The location's own `ogg__RawAddress__c` is deliberately not used
 2. **Callout budget.** Before each record it checks that 3 callouts are still available. If not, the record is returned as "deferred". The queueable chains those into a new job. The batch logs them, and they're picked up by the next automatic run (their flag is still false); with a batch size of 30 or less this doesn't happen.
 3. **Asking the provider** (§4). If nothing is found, or the provider returns an error, the record is left as it is and a message goes to the debug log. **One bad record never stops the others.**
 4. **Distance** (§5).
@@ -286,7 +286,7 @@ The Remote Site Settings `Google_Maps_Geocoding_API`, `Google_Places_API` and `O
 
 ## 9. Limits and known gaps
 
-* **Two address sources.** UPWARD pins the Billing Address; this feature looks up `Address__c`. If the two aren't the same address, a large `Different_Distance__c` may just mean the fields disagree, so check both before correcting a pin.
+* **Two address sources.** UPWARD pins the Billing Address; this feature looks up `Address__c` (the Billing Address only when `Address__c` is blank). If the two aren't the same address, a large `Different_Distance__c` may just mean the fields disagree, so check both before correcting a pin.
 * **Changed addresses aren't detected.** The trigger runs on insert only. Once `isCoordsUpdated__c` is true, a record is only re-checked when ticked, sent through the record button, or its flag is unticked.
 * **Large inserts with the trigger on** queue one job per insert transaction (Data Loader: one per 200 records). That's fine for Google within its quota, but with OpenStreetMap many parallel jobs break Nominatim's 1-request-per-second rule. Check *Disable Lookup On Create* before big loads.
 * **Unfindable records are retried.** Records with no result keep `isCoordsUpdated__c` = false and are tried again by every automatic run.

@@ -34,7 +34,7 @@ Single: record button "Suggest Location (Google)" ─► LWC ─► AccountLocat
                                                           │                          (record button: toast with the result)
                                                           ▼
                                        AccountLocationGeocodeProcessor.process(ids)   (shared)
-                                         ├─ Account Id from ogg__ObjectId__c → Account.Address__c   (fallback: ogg__RawAddress__c)
+                                         ├─ Account Id from ogg__ObjectId__c → Account.Address__c   (blank: Account Billing Address)
                                          ├─ ThaiAddressNormalizer.prepare(address)   Thai digits, ถ./ซ./กทม. ..., drop room/floor
                                          ├─ GoogleGeocodingService.findCoordinates(address)   max 3 callouts, stops at first good result
                                          │     1. Geocoding API – without room/floor   2. – street level   3. (optional) Places API (New)
@@ -89,6 +89,6 @@ HANDOFF.md                                    ← start here: status, next steps
 |---|---|
 | AccountLocation object (ogg package) | `ogg__Location__c` |
 | Link to the Account | `ogg__ObjectId__c` (Text 18, the Account Id; `ogg__prefix__c` = `001`). There's no lookup field. |
-| Address on Account | `Account.Address__c`. If `ogg__ObjectId__c` points to a record that isn't an Account (or the Account is gone), `ogg__Location__c.ogg__RawAddress__c` is used instead. |
+| Address on Account | `Account.Address__c`; if it's blank, the Account's **Billing Address** (Street, City, State, Postal Code; Country unless Thailand). No Account (`ogg__ObjectId__c` isn't an Account Id) or no address: the record is skipped. `ogg__RawAddress__c` is not used. |
 | Original coordinates | `ogg__Latitude__c`, `ogg__Longitude__c` |
 | Target fields (already in the org, **not** deployed by this project) | `Suggested_Latitude__c`, `Suggested_Longtitude__c` (spelled *Longtitude* in the org), `Different_Distance__c`, `isCoordsUpdated__c` (checkbox: processed) |

@@ -2,7 +2,8 @@
  * Geocodes ogg__Location__c records and saves the result. Shared by the single-record button
  * (AccountLocationGeocodeQueueable) and bulk processing (AccountLocationGeocodeBatch).
  *
- * For each record: Account Id from ogg__ObjectId__c -> Account.Address__c (fallback ogg__RawAddress__c)
+ * For each record: Account Id from ogg__ObjectId__c -> Account.Address__c, or the Account's Billing Address
+ * when Address__c is blank (no Account or no address: the record is skipped)
  * -> GoogleGeocodingService (Google or OpenStreetMap) -> Suggested_Latitude__c / Suggested_Longtitude__c /
  * Different_Distance__c, and isCoordsUpdated__c = true (only when coordinates were written; records with no
  * result or a blank address keep the flag false so they can be retried). All callouts first, then one
@@ -20,7 +21,7 @@ public without sharing class AccountLocationGeocodeProcessor {
         String latField = GoogleMapsSettings.originalLatitudeField();
         String lngField = GoogleMapsSettings.originalLongitudeField();
 
-        String soql = 'SELECT Id, ogg__ObjectId__c, ogg__RawAddress__c, ' + latField + ', ' + lngField
+        String soql = 'SELECT Id, ogg__ObjectId__c, ' + latField + ', ' + lngField
                     + ' FROM ogg__Location__c WHERE Id IN :ids';
         List<ogg__Location__c> records = Database.queryWithBinds(
             soql, new Map<String, Object>{ 'ids' => ids }, AccessLevel.SYSTEM_MODE);
@@ -34,7 +35,8 @@ public without sharing class AccountLocationGeocodeProcessor {
             }
         }
         Map<Id, Account> accounts = new Map<Id, Account>(
-            [SELECT Id, Address__c FROM Account WHERE Id IN :accountIds WITH SYSTEM_MODE]);
+            [SELECT Id, Address__c, BillingStreet, BillingCity, BillingState, BillingPostalCode, BillingCountry
+             FROM Account WHERE Id IN :accountIds WITH SYSTEM_MODE]);
 
         GoogleGeocodingService service = new GoogleGeocodingService();
         List<ogg__Location__c> updates = new List<ogg__Location__c>();
@@ -89,16 +91,47 @@ public without sharing class AccountLocationGeocodeProcessor {
     }
 
     /**
-     * Account.Address__c of the Account in ogg__ObjectId__c. Falls back to the location's own
-     * ogg__RawAddress__c when ogg__ObjectId__c is not an Account Id (or the Account is gone).
+     * The address to look up, in this order:
+     *   1. Account.Address__c of the Account in ogg__ObjectId__c
+     *   2. that Account's Billing Address, when Address__c is blank
+     * Null (record skipped) when there is no Account (ogg__ObjectId__c is not an Account Id, or the Account
+     * is gone) or both addresses are blank.
      */
     @TestVisible
     private static String addressFor(ogg__Location__c rec, Map<Id, Account> accounts) {
         Account acc = accounts.get(toAccountId(rec.ogg__ObjectId__c));
         if (acc != null) {
-            return acc.Address__c;
+            if (String.isNotBlank(acc.Address__c)) {
+                return acc.Address__c;
+            }
+            return billingAddress(acc);
         }
-        return rec.ogg__RawAddress__c;
+        return null;
+    }
+
+    /**
+     * Billing Address as one line: street, city, state, postcode, and the country unless it is Thailand
+     * (the lookup is already set up for Thailand). Null when all parts are blank.
+     */
+    @TestVisible
+    private static String billingAddress(Account acc) {
+        List<String> parts = new List<String>();
+        for (String part : new List<String>{
+                acc.BillingStreet, acc.BillingCity, acc.BillingState, acc.BillingPostalCode }) {
+            if (String.isNotBlank(part)) {
+                parts.add(part.normalizeSpace());
+            }
+        }
+        if (parts.isEmpty()) {
+            return null;
+        }
+        String country = acc.BillingCountry == null ? '' : acc.BillingCountry.trim();
+        if (String.isNotBlank(country)
+                && !country.equalsIgnoreCase('Thailand') && !country.equalsIgnoreCase('TH')
+                && country != 'ไทย' && country != 'ประเทศไทย') {
+            parts.add(country);
+        }
+        return String.join(parts, ' ');
     }
 
     /** The value as an Account Id, or null if it is blank, not an Id, or the Id of another object. */
