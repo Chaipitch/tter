@@ -21,9 +21,9 @@
             <p class="slds-text-heading_large">{countLabel}</p>
             <p class="slds-m-bottom_small">oggLocation record(s) not processed yet</p>
             <p class="slds-text-color_weak slds-m-bottom_small">
-                Start looks up all of them (isCoordsUpdated unchecked) in the background. You can keep working
-                and navigate; this panel keeps following the run. To process a record again, untick its
-                isCoordsUpdated or use the "Suggest Location (Google)" button on the record.
+                Start looks up all of them (isCoordsUpdated unchecked) in the background. {backgroundHint}
+                To process a record again, untick its isCoordsUpdated or use the "Suggest Location (Google)"
+                button on the record.
             </p>
             <template lwc:if={openStreetMap}>
                 <p class="slds-text-color_error slds-m-bottom_small">
@@ -44,7 +44,10 @@
             <p class="slds-m-bottom_x-small"><b>{statusLabel}</b></p>
             <lightning-progress-bar value={percent} size="large" variant="circular"
                                     class="slds-m-bottom_x-small"></lightning-progress-bar>
-            <p class="slds-text-color_weak slds-m-bottom_medium">{progressText}</p>
+            <p class="slds-text-color_weak slds-m-bottom_x-small">{progressText}</p>
+            <template lwc:if={running}>
+                <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_medium">{backgroundHint}</p>
+            </template>
 
             <template lwc:if={finished}>
                 <h2 class="slds-text-heading_small slds-m-bottom_x-small">Summary</h2>

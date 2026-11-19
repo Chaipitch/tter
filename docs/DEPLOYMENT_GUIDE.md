@@ -155,9 +155,20 @@ Both buttons are deployed, but they only show once they're placed.
 
 Also add `Suggested Latitude`, `Suggested Longtitude` and `Different Distance` to the layout and, if useful, to list views.
 
-### 3.5b Add the "Suggest Locations" utility bar panel (floats over the Account list view)
+### 3.5b Add the "Suggest Locations" global action (floats over the Account list view, works in managed apps)
 
-A list view button can't open a floating window in Lightning, so the floating version of the bulk lookup is a **utility bar** item. It's a panel at the bottom of the app that opens over any page, including the Account list view.
+A list view button can't open a floating window in Lightning, and utility bar items can't be added to **managed** apps. The **global action** works in every app: it's in the global actions menu (the **+** icon in the header), and it opens a modal over the current page, such as the Account list view.
+
+1. Setup → **Publisher Layouts** → **Global Layout** → **Edit**.
+2. **Mobile & Lightning Actions** → if the *Salesforce Mobile and Lightning Experience Actions* section shows predefined actions, click **override the predefined actions** first.
+3. Drag **Suggest Locations** into *Salesforce Mobile and Lightning Experience Actions* → **Save**.
+4. In the app, click **+** (Global Actions) in the header → **Suggest Locations**.
+
+The modal shows the same panel as the utility bar version: count, **Start**, progress bar (every 5 s), and a summary and toast when the run finishes. Closing the modal doesn't stop the run. Opening **Suggest Locations** again picks it up and shows its progress. Users need the `AccountLocation_Geocoding` permission set (step 3.4).
+
+### 3.5c Optional: "Suggest Locations" as a utility bar panel (editable apps only)
+
+In apps you can edit (not managed apps), the same panel can also be a **utility bar** item: a panel at the bottom of the app that opens over any page and keeps following a run while you navigate.
 
 1. Setup → **App Manager** → the Lightning app your users work in (for example *Sales*) → ▼ → **Edit**.
 2. **Utility Items (Desktop Only)** → **Add Utility Item** → choose **Suggest Locations** (custom component).

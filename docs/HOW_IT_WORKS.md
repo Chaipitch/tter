@@ -89,7 +89,7 @@ All bulk runs process **all oggLocations with `isCoordsUpdated__c` = false** (no
 
 **With OpenStreetMap** (temporary provider, §4.5), each chunk is 10 records and a run is capped at **200 records** (`OSM_MAX_RECORDS_PER_RUN`), because Nominatim's usage policy doesn't allow bulk geocoding. Real volumes need Google.
 
-### 3.1b Bulk from a floating panel: the "Suggest Locations" utility bar item
+### 3.1b Bulk from a floating panel: "Suggest Locations" (global action or utility bar)
 
 **LWC `suggestLocationsPanel` (target `lightning__UtilityBar`) → `SuggestLocationsPanelController` → `AccountLocationGeocodeBatch`**
 
@@ -99,6 +99,8 @@ A list view button can't open a floating window in Lightning, so the floating ve
 * `startRun()`: refuses when the feature is off or there's nothing to process. Otherwise it starts the batch and returns the job Id, start time and number of records.
 * `getStatus(jobId, startedAtMs, recordsInRun)`: progress (percent, batch N of M, about X of Y records). Once the run has finished, it also returns the summary.
 * The panel polls every 5 s while the run is going, keeps following it while the user navigates, and shows a toast and the summary when it's done.
+
+**In managed apps** (where utility bar items can't be added) the same LWC opens from a **global action**: the quick action `Suggest_Locations` (global actions menu, **+** in the header) → Aura wrapper `suggestLocationsGlobalAction` (global actions can't host an LWC directly) → `<c:suggestLocationsPanel mode="modal"/>`. It's a real modal over the current page. Closing it stops the polling, but the run continues, and reopening picks it up through `getOverview()`.
 
 The progress and summary logic is shared with the Account list view page in **`LocationLookupRunService`**, so both always show the same numbers.
 
@@ -263,6 +265,7 @@ The Remote Site Settings `Google_Maps_Geocoding_API`, `Google_Places_API` and `O
 | `classes/AccountLocationGeocodeAction.cls` | `@AuraEnabled enqueue` / `getStatus` used by the button |
 | `objects/Account/webLinks/Suggest_Locations_Google` | The **Suggest Locations (Google)** button on Account list views |
 | `pages/SuggestLocationsFromAccounts.page` + `classes/SuggestLocationsFromAccountsController.cls` | Confirmation page behind the Account list view button (count, Start); starts the batch |
+| `quickActions/Suggest_Locations` + `aura/suggestLocationsGlobalAction/` | Global action: opens the panel in a modal over the current page (any app, incl. managed) |
 | `lwc/suggestLocationsPanel/` + `classes/SuggestLocationsPanelController.cls` | Utility bar panel: count, Start, progress, summary, toast; floats over any page |
 | `classes/LocationLookupRunService.cls` | Shared by the panel and the Account list view page: count not processed, running job, progress and summary |
 | `classes/AccountLocationGeocodeBatch.cls` | Bulk: Batch Apex over selected records or all with `isCoordsUpdated__c` = false; Schedulable |
