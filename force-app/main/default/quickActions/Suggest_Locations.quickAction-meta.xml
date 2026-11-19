@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<QuickAction xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Global action: bulk location lookup for all oggLocation records not processed yet (isCoordsUpdated__c = false), in a modal over the current page.</description>
+    <label>Suggest Locations</label>
+    <lightningComponent>suggestLocationsGlobalAction</lightningComponent>
+    <optionsCreateFeedItem>false</optionsCreateFeedItem>
+    <type>LightningComponent</type>
+</QuickAction>

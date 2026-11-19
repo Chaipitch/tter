@@ -3,7 +3,7 @@
     <apiVersion>62.0</apiVersion>
     <isExposed>true</isExposed>
     <masterLabel>Suggest Locations</masterLabel>
-    <description>Utility bar panel: bulk location lookup for all oggLocation records not processed yet (isCoordsUpdated__c = false), with progress, summary and a toast. Floats over any page, e.g. the Account list view.</description>
+    <description>Utility bar panel: bulk location lookup for all oggLocation records not processed yet (isCoordsUpdated__c = false), with progress, summary and a toast. Floats over any page, e.g. the Account list view. Also used inside the global action suggestLocationsGlobalAction (mode = modal).</description>
     <targets>
         <target>lightning__UtilityBar</target>
     </targets>

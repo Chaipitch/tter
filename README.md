@@ -4,7 +4,7 @@ This SFDX project checks the Account's single-field address of `ogg__Location__c
 
 * **Automatically when an oggLocation is created** (trigger, after insert). Can be switched off with *Disable Lookup On Create* in the custom setting, for example during a large data load.
 * **Account list view button "Suggest Locations (Google)"**: processes **all oggLocations not processed yet (`isCoordsUpdated__c` unchecked)**, whichever Accounts are selected. It lives on Account because oggLocation belongs to a managed package. Runs as Batch Apex, with a progress bar and a summary when it's finished. Each processed record gets `isCoordsUpdated__c` = true, so it isn't processed again.
-* **"Suggest Locations" utility bar panel**: the same bulk run in a panel that floats over any page (e.g. the Account list view), with progress, a summary and a toast. It keeps following the run while you navigate.
+* **"Suggest Locations" global action / utility bar panel**: the same bulk run in a window that floats over the current page (e.g. the Account list view), with progress, a summary and a toast. The **global action** (**+** in the header) works in every app, including managed ones. The utility bar version is for apps you can edit.
 * **Scheduled run** (for example nightly) over all records not processed yet: `scripts/apex/schedule-nightly.apex`.
 * **Record button "Suggest Location (Google)"**: one record, with the result shown in a toast.
 
@@ -73,7 +73,9 @@ force-app/main/default/
 ├── triggers/AccountLocationTrigger.trigger   after insert on ogg__Location__c
 ├── pages/SuggestLocationsFromAccounts.page   Account list view button confirmation page
 ├── objects/Account/webLinks/Suggest_Locations_Google   the Account list view button
-├── lwc/suggestLocationsPanel/                utility bar panel (floats over any page)
+├── lwc/suggestLocationsPanel/                floating panel (utility bar, or inside the global action)
+├── aura/suggestLocationsGlobalAction/        global action wrapper (modal over the current page)
+├── quickActions/Suggest_Locations            the "Suggest Locations" global action
 ├── lwc/suggestGoogleLocation/                headless quick action (button → job → toast)
 ├── quickActions/ogg__Location__c.Suggest_Google_Location   the "Suggest Location (Google)" button
 ├── objects/Google_Maps_Settings__c/          hierarchy custom setting (API key, switches, field mapping)

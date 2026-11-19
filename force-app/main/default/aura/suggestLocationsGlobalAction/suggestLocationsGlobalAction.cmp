@@ -1,0 +1,8 @@
+<!--
+    Global action "Suggest Locations": opens the suggestLocationsPanel LWC in a modal over the current page
+    (e.g. the Account list view), in any Lightning app, including managed apps where utility bar items
+    can't be added. Global actions can't host an LWC directly, so this Aura component wraps it.
+-->
+<aura:component implements="force:lightningQuickAction" access="global">
+    <c:suggestLocationsPanel mode="modal" />
+</aura:component>
