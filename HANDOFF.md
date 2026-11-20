@@ -7,7 +7,7 @@ The customer's single-field address (`Account.Address__c`, or the Billing Addres
 * **Automatically when an oggLocation is created** (`AccountLocationTrigger`, after insert). For a large data load, uncheck *Enabled* in Google Maps Settings during the load (or set `AccountLocationTriggerHandler.bypass = true` if the load runs in Apex).
 * **"Suggest Locations" global action** (**+** in the header): a modal that floats over the current page, for example the Account list view in the managed app. **Start** processes **all oggLocations not processed yet** (`isCoordsUpdated__c` unchecked) with Batch Apex, with progress, a summary and a toast.
 * **Nightly schedule** (optional) over all records not processed yet.
-* **Record button "Suggest Location (Google)"**: one record, with the result in a toast.
+* **Record button "Suggest Location"**: one record, with the result in a toast.
 
 The search is tuned for Thai addresses: it removes room and floor details, expands abbreviations, and checks the postcode.
 
@@ -37,7 +37,7 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
      sf org assign permset --name AccountLocation_Geocoding --target-org tterakit-sb
      ```
 
-   * Add **Suggest Locations** to the Global Publisher Layout, and **Suggest Location (Google)** to the oggLocation page layout.
+   * Add **Suggest Locations** to the Global Publisher Layout, and **Suggest Location** to the oggLocation page layout.
    * Optional: an oggLocation report filtered on *isCoordsUpdated equals False* to follow progress.
 3. **Flag records processed before the flag existed** (one-off, optional). Run this in Developer Console → Execute Anonymous. Without it, the next bulk run looks them up once more:
 
@@ -78,7 +78,7 @@ How it works: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) · Deployment: [docs/
 | Path | What |
 |---|---|
 | `force-app/main/default/quickActions/Suggest_Locations.quickAction-meta.xml` + `aura/suggestLocationsGlobalAction/` + `lwc/suggestLocationsPanel/` | The **Suggest Locations** global action: Aura wrapper hosting the panel (count, Start, progress, summary, toast) |
-| `force-app/main/default/quickActions/ogg__Location__c.Suggest_Google_Location.quickAction-meta.xml` | The **Suggest Location (Google)** record button |
+| `force-app/main/default/quickActions/ogg__Location__c.Suggest_Google_Location.quickAction-meta.xml` | The **Suggest Location** record button |
 | `force-app/main/default/lwc/suggestGoogleLocation/` | Headless action: start job → poll status → refresh record → toast |
 | `force-app/main/default/classes/` | `AccountLocationGeocodeBatch` (bulk, Schedulable), `SuggestLocationsPanelController` + `LocationLookupRunService` (global action panel), `AccountLocationGeocodeProcessor` (shared per-record work), `AccountLocationGeocodeAction` + `AccountLocationGeocodeQueueable` (record button), `GoogleGeocodingService`, `ThaiAddressNormalizer`, `GeoDistanceUtil`, `GoogleMapsSettings`, plus tests, `GoogleMapsCalloutMock` and `TestRecordFactory` |
 | `force-app/main/default/objects/Google_Maps_Settings__c/` | Custom setting: key, on/off switch, country/region/language, Places fallback, field names, batch size, timeout |
@@ -137,4 +137,6 @@ Deploy and test commands are in [DEPLOYMENT_GUIDE §3](docs/DEPLOYMENT_GUIDE.md#
 | #16 | On-create trigger brought back (after insert), alongside the list view and record buttons; *Disable Lookup On Create* setting; `destructiveChanges.xml` removed |
 | [#22](https://github.com/Chaipitch/tter/pull/22) – [#25](https://github.com/Chaipitch/tter/pull/25) | Bulk button on Account list views (oggLocation is a managed object), then progress, summary, toast, modal look; utility bar panel; shared `LocationLookupRunService` |
 | [#26](https://github.com/Chaipitch/tter/pull/26) – [#28](https://github.com/Chaipitch/tter/pull/28) | "Suggest Locations" global action (modal over the current page, works in managed apps); metadata fixes; TESTING_GUIDE restored |
-| next | Cleanup: Account list view button, its page and controller, and the utility bar variant removed (replaced by the global action); `manifest/cleanup` for the org; header comments removed from source files |
+| [#29](https://github.com/Chaipitch/tter/pull/29) | Cleanup: Account list view button, its page and controller, and the utility bar variant removed (replaced by the global action); `manifest/cleanup` for the org; header comments removed from source files |
+| [#30](https://github.com/Chaipitch/tter/pull/30) – [#31](https://github.com/Chaipitch/tter/pull/31) | Country (TH), language (th), Places fallback and lookup on create fixed in Apex; the five custom setting fields removed (`manifest/cleanup`, run with `--ignore-warnings`) |
+| next | Record button label "Suggest Location (Google)" renamed to "Suggest Location" (API name `Suggest_Google_Location` unchanged) |

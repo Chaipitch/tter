@@ -155,8 +155,8 @@ If the action isn't in the **+** menu, check *Publisher Layout Assignment*: the 
 
 ### 3.5b Put the record button on the oggLocation page (single record)
 
-* **Page layout** (most orgs): Setup → Object Manager → **oggLocation** → Page Layouts → open the layout → **Mobile & Lightning Actions** → drag **Suggest Location (Google)** into *Salesforce Mobile and Lightning Experience Actions* → Save. If that section shows "predefined actions", click the wrench icon first to override them.
-* **Lightning record page with Dynamic Actions:** Lightning App Builder → select the Highlights Panel → **Add Action** → *Suggest Location (Google)* → Save.
+* **Page layout** (most orgs): Setup → Object Manager → **oggLocation** → Page Layouts → open the layout → **Mobile & Lightning Actions** → drag **Suggest Location** into *Salesforce Mobile and Lightning Experience Actions* → Save. If that section shows "predefined actions", click the wrench icon first to override them.
+* **Lightning record page with Dynamic Actions:** Lightning App Builder → select the Highlights Panel → **Add Action** → *Suggest Location* → Save.
 
 Also add `Suggested Latitude`, `Suggested Longtitude` and `Different Distance` to the layout and, if useful, to list views.
 

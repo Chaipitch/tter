@@ -25,7 +25,7 @@ This feature gives a second opinion, **for large numbers of records**. The addre
 
 ```
       ON CREATE                         BULK                                        SINGLE RECORD
- ogg__Location__c inserted    global action "Suggest Locations" (+ menu)     record button "Suggest Location (Google)"
+ ogg__Location__c inserted    global action "Suggest Locations" (+ menu)     record button "Suggest Location"
    → AccountLocationTrigger     → modal: suggestLocationsPanel (Start)          → LWC suggestGoogleLocation
                                 → SuggestLocationsPanelController.startRun
    → AccountLocationTrigger-  scheduled job (schedule-nightly.apex)             → AccountLocationGeocodeAction.enqueue
@@ -249,7 +249,7 @@ Fixed in Apex (`GoogleMapsSettings`), not in the setting: `COUNTRY_CODE = 'TH'` 
 
 | File | Role |
 |---|---|
-| `quickActions/ogg__Location__c.Suggest_Google_Location` | The **Suggest Location (Google)** button (Lightning Web Component action) |
+| `quickActions/ogg__Location__c.Suggest_Google_Location` | The **Suggest Location** button (Lightning Web Component action) |
 | `lwc/suggestGoogleLocation/` | Headless action: starts the job, polls its status, refreshes the record, shows toasts |
 | `classes/AccountLocationGeocodeAction.cls` | `@AuraEnabled enqueue` / `getStatus` used by the button |
 | `quickActions/Suggest_Locations` + `aura/suggestLocationsGlobalAction/` | Global action: opens the panel in a modal over the current page (any app, incl. managed) |

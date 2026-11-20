@@ -2,7 +2,7 @@
 <LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
     <apiVersion>62.0</apiVersion>
     <isExposed>true</isExposed>
-    <masterLabel>Suggest Location (Google)</masterLabel>
+    <masterLabel>Suggest Location</masterLabel>
     <description>Headless quick action: geocodes the Account address of an oggLocation record with Google Maps in the background.</description>
     <targets>
         <target>lightning__RecordAction</target>
