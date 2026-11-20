@@ -8,7 +8,7 @@
         <apexClass>SuggestLocationsPanelController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
-    <description>Use the "Suggest Location (Google)" record button, the "Suggest Locations" global action, and read the suggested coordinates and distance on oggLocation.</description>
+    <description>Use the "Suggest Location" record button, the "Suggest Locations" global action, and read the suggested coordinates and distance on oggLocation.</description>
     <fieldPermissions>
         <editable>false</editable>
         <field>ogg__Location__c.Different_Distance__c</field>

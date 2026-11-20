@@ -5,7 +5,7 @@ This SFDX project checks the Account's single-field address of `ogg__Location__c
 * **Automatically when an oggLocation is created** (trigger, after insert). For a large data load, uncheck *Enabled* in Google Maps Settings during the load (or set `AccountLocationTriggerHandler.bypass = true` if the load runs in Apex).
 * **"Suggest Locations" global action** (**+** in the header, works in every app including managed ones): a modal that floats over the current page (e.g. the Account list view). It shows how many oggLocations aren't processed yet (`isCoordsUpdated__c` unchecked), and **Start** processes all of them with Batch Apex, with a progress bar, a summary and a toast. Each processed record gets `isCoordsUpdated__c` = true, so it isn't processed again.
 * **Scheduled run** (for example nightly) over all records not processed yet: `scripts/apex/schedule-nightly.apex`.
-* **Record button "Suggest Location (Google)"**: one record, with the result shown in a toast.
+* **Record button "Suggest Location"**: one record, with the result shown in a toast.
 
 The global action and the schedule are for **large volumes**: existing records, and records the trigger skipped. To re-check a processed record, untick its `isCoordsUpdated__c` or use the record button.
 
@@ -30,7 +30,7 @@ Bulk:   global action "Suggest Locations" (+ menu) ─► modal: suggestLocation
                                          all oggLocations with isCoordsUpdated__c = false
                                                           │
 Create: ogg__Location__c inserted ─► AccountLocationTrigger ─► AccountLocationTriggerHandler ─┐
-Single: record button "Suggest Location (Google)" ─► LWC ─► AccountLocationGeocodeAction ─────┴─► AccountLocationGeocodeQueueable
+Single: record button "Suggest Location" ─► LWC ──────────► AccountLocationGeocodeAction ─────┴─► AccountLocationGeocodeQueueable
                                                           │                          (record button: toast with the result)
                                                           ▼
                                        AccountLocationGeocodeProcessor.process(ids)   (shared)
@@ -73,7 +73,7 @@ force-app/main/default/
 ├── aura/suggestLocationsGlobalAction/        global action wrapper (modal over the current page)
 ├── quickActions/Suggest_Locations            the "Suggest Locations" global action
 ├── lwc/suggestGoogleLocation/                headless quick action (button → job → toast)
-├── quickActions/ogg__Location__c.Suggest_Google_Location   the "Suggest Location (Google)" button
+├── quickActions/ogg__Location__c.Suggest_Google_Location   the "Suggest Location" button
 ├── objects/Google_Maps_Settings__c/          hierarchy custom setting (API key, switches, field mapping)
 ├── remoteSiteSettings/                       maps.googleapis.com, places.googleapis.com, nominatim.openstreetmap.org
 └── permissionsets/AccountLocation_Geocoding  access to both buttons + read access to the 3 suggested/distance fields

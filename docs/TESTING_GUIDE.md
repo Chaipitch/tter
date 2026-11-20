@@ -35,7 +35,7 @@ sf apex run test \
 
 ### Preparation
 
-* Put the **Suggest Location (Google)** button and the `Suggested Latitude`, `Suggested Longtitude` and `Different Distance` fields on the oggLocation page (DEPLOYMENT_GUIDE 3.5).
+* Put the **Suggest Location** button and the `Suggested Latitude`, `Suggested Longtitude` and `Different Distance` fields on the oggLocation page (DEPLOYMENT_GUIDE 3.5).
 * Open **Setup → Debug Logs** and add a trace flag for **your user** (the job runs as the user who clicked the button), with Apex = `DEBUG`. Errors from the job are written with `System.debug(LoggingLevel.ERROR, ...)`.
 * Optionally, tail the logs live:
 
@@ -102,7 +102,7 @@ Before searching, Thai digits (๐–๙) are converted, and abbreviations (`ถ
 
 ### Test cases
 
-Create each Account the way users normally do, so that UPWARD creates the oggLocation record. **New records are looked up automatically by the trigger** (TC-08). TC-01 – TC-11 use the **record button**, which also works on records the trigger already processed (to reset GEO-TEST results, run `apply-test-pins.apex`): open the oggLocation record and click **Suggest Location (Google)**. Within a few seconds a toast shows the result and the record refreshes. TC-12 – TC-17 test **bulk processing**; TC-18 – TC-19 are edge cases.
+Create each Account the way users normally do, so that UPWARD creates the oggLocation record. **New records are looked up automatically by the trigger** (TC-08). TC-01 – TC-11 use the **record button**, which also works on records the trigger already processed (to reset GEO-TEST results, run `apply-test-pins.apex`): open the oggLocation record and click **Suggest Location**. Within a few seconds a toast shows the result and the record refreshes. TC-12 – TC-17 test **bulk processing**; TC-18 – TC-19 are edge cases.
 
 | # | Scenario | Steps | Expected result |
 |---|---|---|---|
