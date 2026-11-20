@@ -162,19 +162,21 @@ Also add `Suggested Latitude`, `Suggested Longtitude` and `Different Distance` t
 
 ### 3.5c Remove leftovers from earlier versions (orgs that had them, e.g. `tterakit-sb`)
 
-Earlier versions deployed list view buttons that are no longer part of the project:
+Earlier versions deployed components that are no longer part of the project. A normal deploy never deletes anything from the org, so they stay until this cleanup runs:
 * the Account list view button **Suggest Locations (Google)**, page `SuggestLocationsFromAccounts` and class `SuggestLocationsFromAccountsController`
 * the oggLocation list view button, page `AccountLocationGeocodeList` and class `AccountLocationGeocodeListController`
+* the Google Maps Settings fields **Country Code**, **Language**, **Region**, **Use Places Fallback** and **Disable Lookup On Create** (now fixed in Apex, `GoogleMapsSettings`)
 
 They're unused, but they stay in the org until deleted:
 1. Setup → Object Manager → **Account** → **List View Button Layout** → remove **Suggest Locations (Google)** from *Selected Buttons* → Save. A button that's still on a layout can't be deleted.
 2. Deploy the current project first, so no test class refers to them any more, then delete them:
 
    ```bash
-   sf project deploy start --manifest manifest/cleanup/package.xml --post-destructive-changes manifest/cleanup/destructiveChanges.xml --target-org tterakit-sb --wait 30
+   sf project deploy start --manifest manifest/cleanup/package.xml --post-destructive-changes manifest/cleanup/destructiveChanges.xml --target-org tterakit-sb --ignore-warnings --wait 30
    ```
 
-   Components that don't exist in the org are reported as warnings and skipped.
+   `--ignore-warnings` matters: components that are already gone (e.g. buttons deleted earlier) only produce a warning, but without the flag a warning makes the whole cleanup fail and nothing is deleted.
+3. Check: Setup → Custom Settings → **Google Maps Settings**. Only Enabled, Provider, API Key, Original Latitude/Longitude Field, Batch Size and Timeout should be left under *Custom Fields*. If Salesforce lists the removed ones under *Deleted Fields*, it keeps them there for 15 days; **Erase** removes them for good.
 
 ### 3.6 Optional: nightly run
 
